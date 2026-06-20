@@ -1,130 +1,69 @@
 document.addEventListener("DOMContentLoaded", async () => {
-    const client = window.NovaAuth?.createSupabaseClient();
+    const supabase = window.NovaAuth.createSupabaseClient();
 
-    const btn = document.getElementById("reset-btn");
-    const msg = document.getElementById("msg");
-    const input = document.getElementById("password");
+    const form = document.getElementById("reset-form");
+    const password = document.getElementById("password");
     const confirm = document.getElementById("confirm");
+    const msg = document.getElementById("msg");
+    const togglePassword = document.getElementById("toggle-password");
+    const toggleConfirm = document.getElementById("toggle-confirm");
 
-    // =========================
-    // 1. CLIENT CHECK
-    // =========================
-    if (!client) {
-        console.error("Supabase client not initialized");
-        msg.textContent = "System error. Please reload page.";
-        btn.disabled = true;
+    const passwordInput = document.getElementById("password");
+    const confirmInput = document.getElementById("confirm");
+
+    togglePassword.addEventListener("click", () => {
+        const type = passwordInput.type === "password" ? "text" : "password";
+        passwordInput.type = type;
+        togglePassword.textContent = type === "password" ? "👁" : "🙈";
+    });
+
+    toggleConfirm.addEventListener("click", () => {
+        const type = confirmInput.type === "password" ? "text" : "password";
+        confirmInput.type = type;
+        toggleConfirm.textContent = type === "password" ? "👁" : "🙈";
+    });
+    if (!supabase) {
+        msg.textContent = "Auth system not ready";
         return;
     }
 
-    // =========================
-    // 2. TOKEN CHECK
-    // =========================
-    const token = new URLSearchParams(window.location.search).get("token");
+    // 💥 IMPORTANT: wait for Supabase recovery session
+    const { data: sessionData } = await supabase.auth.getSession();
 
-    console.log("RESET TOKEN:", token);
-
-    if (!token) {
-        msg.textContent = "Invalid reset link";
-        btn.disabled = true;
-        input.disabled = true;
-        confirm.disabled = true;
+    if (!sessionData?.session) {
+        msg.textContent = "Invalid or expired reset session. Try again.";
         return;
     }
 
-    // =========================
-    // 3. FETCH TOKEN FROM DB
-    // =========================
-    const { data, error } = await client
-        .from("password_resets")
-        .select("*")
-        .eq("token", token)
-        .single();
+    form.addEventListener("submit", async (e) => {
+        e.preventDefault();
 
-    console.log("DB RESPONSE:", { data, error });
+        const pass = password.value.trim();
+        const confirmPass = confirm.value.trim();
 
-    if (error || !data) {
-        msg.textContent = "Invalid or expired link";
-        btn.disabled = true;
-        input.disabled = true;
-        confirm.disabled = true;
-        return;
-    }
-
-    // =========================
-    // 4. VALIDATION
-    // =========================
-    const isExpired = new Date(data.expires_at).getTime() < Date.now();
-
-    if (data.used) {
-        msg.textContent = "This link was already used";
-        btn.disabled = true;
-        return;
-    }
-
-    if (isExpired) {
-        msg.textContent = "Link expired";
-        btn.disabled = true;
-        return;
-    }
-
-    msg.textContent = "Enter your new password";
-
-    // =========================
-    // 5. RESET HANDLER
-    // =========================
-    btn.addEventListener("click", async () => {
-
-        const password = input.value.trim();
-        const confirmPassword = confirm.value.trim();
-
-        if (!password) {
-            msg.textContent = "Enter password";
-            return;
-        }
-
-        if (password.length < 6) {
+        if (!pass || pass.length < 6) {
             msg.textContent = "Password must be at least 6 characters";
             return;
         }
 
-        if (password !== confirmPassword) {
+        if (pass !== confirmPass) {
             msg.textContent = "Passwords do not match";
             return;
         }
 
-        btn.disabled = true;
         msg.textContent = "Updating password...";
 
-        // =========================
-        // 6. UPDATE PASSWORD
-        // =========================
-        const { error: updateError } = await client.auth.updateUser({
-            password
+        const { error } = await supabase.auth.updateUser({
+            password: pass
         });
 
-        if (updateError) {
-            console.error(updateError);
-            msg.textContent = updateError.message;
-            btn.disabled = false;
+        if (error) {
+            console.error(error);
+            msg.textContent = error.message;
             return;
         }
 
-        // =========================
-        // 7. MARK TOKEN AS USED
-        // =========================
-        const { error: updateTokenError } = await client
-            .from("password_resets")
-            .update({ used: true })
-            .eq("token", token);
-
-        if (updateTokenError) {
-            console.error("Token update error:", updateTokenError);
-        }
-
-        // =========================
-        // 8. SUCCESS
-        // =========================
-        msg.textContent = "Password updated successfully! Redirecting...";
+        msg.textContent = "Password updated! Redirecting...";
 
         setTimeout(() => {
             window.location.href = "login.html";

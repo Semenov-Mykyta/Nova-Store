@@ -11,41 +11,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     const dashboard = document.getElementById("dashboard");
     const dashboardEmail = document.getElementById("dashboard-email");
 
-    function setStatus(element, message, type = "") {
-        if (!element) return;
-        element.textContent = message;
-        element.className = "auth-status";
-        if (type) element.classList.add(type);
+    function setStatus(el, msg, type = "") {
+        if (!el) return;
+        el.textContent = msg;
+        el.className = "auth-status";
+        if (type) el.classList.add(type);
     }
 
-    document.querySelectorAll(".auth-tab").forEach((tab) => {
-        tab.addEventListener("click", () => {
-            document.querySelectorAll(".auth-tab").forEach((t) => t.classList.remove("active"));
-            tab.classList.add("active");
-
-            const target = tab.getAttribute("data-auth-tab");
-
-            document.querySelectorAll(".auth-form").forEach((form) => {
-                form.classList.toggle("active", form.id.startsWith(target));
-            });
-        });
-    });
-
-    async function refreshSessionUI(forceRefresh = false) {
-        const user = await window.NovaAuth.getCurrentUser({ forceRefresh });
-
-        if (user && dashboard) {
-            dashboard.hidden = false;
-            if (dashboardEmail) dashboardEmail.textContent = user.email;
-        } else if (dashboard) {
-            dashboard.hidden = true;
-        }
-    }
-
+    // ======================
+    // LOGIN
+    // ======================
     if (loginForm) {
         loginForm.addEventListener("submit", async (e) => {
             e.preventDefault();
-            setStatus(loginStatus, "");
 
             const email = document.getElementById("login-email").value.trim();
             const password = document.getElementById("login-password").value;
@@ -60,44 +38,27 @@ document.addEventListener("DOMContentLoaded", async () => {
                 return;
             }
 
-            setStatus(loginStatus, "Logged in successfully.", "success");
+            setStatus(loginStatus, "Logged in successfully", "success");
 
             sessionStorage.setItem("novastore_auth_cache", JSON.stringify({
                 createdAt: Date.now(),
-                user: data?.user ? {
-                    id: data.user.id,
-                    email: data.user.email
-                } : null
+                user: data.user
             }));
-
-            const signedInUser = data?.user ? {
-                id: data.user.id,
-                email: data.user.email
-            } : null;
-
-            if (window.NovaCart && signedInUser) {
-                await window.NovaCart.handleLogin(signedInUser);
-            }
 
             window.dispatchEvent(new CustomEvent("nova:auth-changed", {
-                detail: { user: signedInUser }
+                detail: { user: data.user }
             }));
 
-            await refreshSessionUI(true);
-
-            const params = new URLSearchParams(window.location.search);
-            const next = params.get("next");
-
-            window.location.href = next && !next.startsWith("http")
-                ? next
-                : "index.html";
+            window.location.href = "index.html";
         });
     }
 
+    // ======================
+    // REGISTER
+    // ======================
     if (registerForm) {
         registerForm.addEventListener("submit", async (e) => {
             e.preventDefault();
-            setStatus(registerStatus, "");
 
             const email = document.getElementById("register-email").value.trim();
             const password = document.getElementById("register-password").value;
@@ -106,7 +67,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 email,
                 password,
                 options: {
-                    emailRedirectTo: new URL("login.html", window.location.href).href
+                    emailRedirectTo: `${window.location.origin}/login.html`
                 }
             });
 
@@ -115,18 +76,19 @@ document.addEventListener("DOMContentLoaded", async () => {
                 return;
             }
 
-            setStatus(registerStatus, "Check your email to confirm your account.", "success");
+            setStatus(registerStatus, "Check your email to confirm account", "success");
         });
     }
 
+    // ======================
+    // FORGOT PASSWORD (FIXED)
+    // ======================
     if (forgotBtn) {
         forgotBtn.addEventListener("click", async () => {
-            setStatus(loginStatus, "");
-
             const email = document.getElementById("login-email").value.trim();
 
             if (!email) {
-                setStatus(loginStatus, "Enter your email first.", "error");
+                setStatus(loginStatus, "Enter email first", "error");
                 return;
             }
 
@@ -134,62 +96,34 @@ document.addEventListener("DOMContentLoaded", async () => {
             const oldText = forgotBtn.textContent;
             forgotBtn.textContent = "Sending...";
 
-            try {
-                const res = await fetch(
-                    "https://vpznvbxgklqovibmoheq.supabase.co/functions/v1/send-reset-email",
-                    {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json"
-                        },
-                        body: JSON.stringify({ email })
-                    }
-                );
+            const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+                redirectTo: `${window.location.origin}/password-reset.html`
+            });
 
-                let data = null;
-
-                try {
-                    data = await res.json();
-                } catch {
-                    data = null;
-                }
-
-                if (!res.ok) {
-                    setStatus(
-                        loginStatus,
-                        data?.error || data?.message || "Failed to send reset email.",
-                        "error"
-                    );
-                    return;
-                }
-
-                setStatus(loginStatus, "Check your email for reset link.", "success");
-            } catch (err) {
-                console.error("Reset email error:", err);
-                setStatus(loginStatus, "Failed to send reset email.", "error");
-            } finally {
-                forgotBtn.disabled = false;
-                forgotBtn.textContent = oldText || "Forgot password?";
+            if (error) {
+                setStatus(loginStatus, error.message, "error");
+            } else {
+                setStatus(loginStatus, "Check your email for reset link", "success");
             }
+
+            forgotBtn.disabled = false;
+            forgotBtn.textContent = oldText;
         });
     }
 
+    // ======================
+    // LOGOUT
+    // ======================
     if (logoutBtn) {
         logoutBtn.addEventListener("click", async () => {
-            if (window.NovaCart?.prepareForLogout) {
-                await window.NovaCart.prepareForLogout();
-            }
-
             await supabaseClient.auth.signOut();
-            window.NovaAuth.clearAuthCache();
+            sessionStorage.removeItem("novastore_auth_cache");
 
             window.dispatchEvent(new CustomEvent("nova:auth-changed", {
                 detail: { user: null }
             }));
 
-            await refreshSessionUI(true);
+            window.location.href = "login.html";
         });
     }
-
-    await refreshSessionUI();
 });
