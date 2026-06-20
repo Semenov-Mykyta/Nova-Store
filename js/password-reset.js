@@ -1,189 +1,67 @@
 document.addEventListener("DOMContentLoaded", async () => {
-    const supabaseClient = window.NovaAuth?.createSupabaseClient?.();
-    if (!supabaseClient) return;
+    const client = window.NovaAuth.createSupabaseClient();
 
-    const resetForm = document.getElementById("reset-password-form");
-    const requestForm = document.getElementById("reset-request-form");
-    const resetStatus = document.getElementById("reset-password-status");
-    const requestStatus = document.getElementById("reset-request-status");
+    const btn = document.getElementById("reset-btn");
+    const msg = document.getElementById("msg");
 
-    function translate(key, params = {}, fallback = key) {
-        if (typeof window.translate === "function") {
-            const translated = window.translate(key, params);
-            if (translated && translated !== key) return translated;
-        }
+    const token = new URLSearchParams(window.location.search).get("token");
 
-        let text = fallback;
-        Object.entries(params).forEach(([name, value]) => {
-            text = text.replaceAll(`{${name}}`, String(value ?? ""));
-        });
-        return text;
+    if (!token) {
+        msg.textContent = "Invalid reset link";
+        btn.disabled = true;
+        return;
     }
 
-    function setStatus(element, message, type = "") {
-        if (!element) return;
-        element.textContent = message;
-        element.className = "auth-status";
-        if (type) element.classList.add(type);
-    }
+    btn.addEventListener("click", async () => {
+        const password = document.getElementById("password").value;
 
-    function showResetForm() {
-        resetForm?.classList.add("active");
-        requestForm?.classList.remove("active");
-    }
-
-    function showRequestForm(message = "") {
-        resetForm?.classList.remove("active");
-        requestForm?.classList.add("active");
-
-        if (message) {
-            setStatus(requestStatus, message, "error");
-        }
-    }
-
-    async function exchangeCodeIfPresent() {
-        const params = new URLSearchParams(window.location.search);
-        const code = params.get("code");
-
-        if (!code) return false;
-
-        const { error } = await supabaseClient.auth.exchangeCodeForSession(code);
-
-        if (error) {
-            console.error("Could not exchange password reset code:", error);
-            showRequestForm(error.message);
-            return false;
-        }
-
-        window.history.replaceState({}, document.title, window.location.pathname);
-        return true;
-    }
-
-    async function detectRecoverySession() {
-        const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
-        const queryParams = new URLSearchParams(window.location.search);
-        const urlType = hashParams.get("type") || queryParams.get("type");
-        const hasTokenInUrl = hashParams.has("access_token") || queryParams.has("code");
-
-        await exchangeCodeIfPresent();
-
-        const { data, error } = await supabaseClient.auth.getSession();
-
-        if (error) {
-            console.error("Could not read recovery session:", error);
-            showRequestForm(error.message);
+        if (!password) {
+            msg.textContent = "Enter password";
             return;
         }
 
-        const hasSession = Boolean(data?.session?.user);
+        msg.textContent = "Checking link...";
 
-        if (hasSession || urlType === "recovery" || hasTokenInUrl) {
-            showResetForm();
-        } else {
-            showRequestForm(translate(
-                "auth.reset_no_session",
-                {},
-                "Open the password reset link from your email, or request a new one below."
-            ));
+        // 1. find token in DB
+        const { data, error } = await client
+            .from("password_resets")
+            .select("*")
+            .eq("token", token)
+            .single();
+
+        if (error || !data) {
+            msg.textContent = "Invalid or expired link";
+            return;
         }
-    }
 
-    if (requestForm) {
-        requestForm.addEventListener("submit", async (event) => {
-            event.preventDefault();
+        // 2. expiry check
+        if (data.used || new Date(data.expires_at) < new Date()) {
+            msg.textContent = "Link expired";
+            return;
+        }
 
-            const email = document.getElementById("reset-email")?.value.trim();
-            setStatus(requestStatus, "");
+        msg.textContent = "Updating password...";
 
-            if (!email) {
-                setStatus(requestStatus, translate("auth.reset_no_session", {}, "Enter your email first."), "error");
-                return;
-            }
-
-            const submitBtn = requestForm.querySelector("button[type='submit']");
-            const oldText = submitBtn?.textContent;
-            if (submitBtn) submitBtn.disabled = true;
-
-            try {
-                const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
-                    redirectTo: new URL("password-reset.html", window.location.href).href
-                });
-
-                if (error) throw error;
-
-                setStatus(
-                    requestStatus,
-                    translate("auth.reset_email_sent", {}, "Password reset email sent. Check your inbox."),
-                    "success"
-                );
-            } catch (err) {
-                setStatus(requestStatus, err.message || "Could not send reset email.", "error");
-            } finally {
-                if (submitBtn) {
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = oldText;
-                }
-            }
+        // 3. update password in Supabase Auth
+        const { error: updateError } = await client.auth.updateUser({
+            password: password
         });
-    }
 
-    if (resetForm) {
-        resetForm.addEventListener("submit", async (event) => {
-            event.preventDefault();
+        if (updateError) {
+            msg.textContent = updateError.message;
+            return;
+        }
 
-            const password = document.getElementById("new-password")?.value || "";
-            const confirmPassword = document.getElementById("confirm-password")?.value || "";
+        // 4. mark token as used
+        await client
+            .from("password_resets")
+            .update({ used: true })
+            .eq("token", token);
 
-            setStatus(resetStatus, "");
+        msg.textContent = "Password updated! Redirecting...";
 
-            if (password.length < 6) {
-                setStatus(
-                    resetStatus,
-                    translate("auth.password_min", {}, "Password must be at least 6 characters."),
-                    "error"
-                );
-                return;
-            }
-
-            if (password !== confirmPassword) {
-                setStatus(
-                    resetStatus,
-                    translate("auth.password_mismatch", {}, "Passwords do not match."),
-                    "error"
-                );
-                return;
-            }
-
-            const submitBtn = resetForm.querySelector("button[type='submit']");
-            const oldText = submitBtn?.textContent;
-            if (submitBtn) submitBtn.disabled = true;
-
-            try {
-                const { error } = await supabaseClient.auth.updateUser({ password });
-                if (error) throw error;
-
-                await supabaseClient.auth.signOut();
-                window.NovaAuth?.clearAuthCache?.();
-
-                setStatus(
-                    resetStatus,
-                    translate("auth.password_updated", {}, "Password updated. You can log in with your new password now."),
-                    "success"
-                );
-
-                setTimeout(() => {
-                    window.location.href = "login.html";
-                }, 1800);
-            } catch (err) {
-                setStatus(resetStatus, err.message || "Could not update password.", "error");
-            } finally {
-                if (submitBtn) {
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = oldText;
-                }
-            }
-        });
-    }
-
-    await detectRecoverySession();
+        setTimeout(() => {
+            window.location.href = "login.html";
+        }, 1500);
+    });
 });
