@@ -5,12 +5,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     const password = document.getElementById("password");
     const confirm = document.getElementById("confirm");
     const msg = document.getElementById("msg");
+
     const togglePassword = document.getElementById("toggle-password");
     const toggleConfirm = document.getElementById("toggle-confirm");
 
-    const passwordInput = document.getElementById("password");
-    const confirmInput = document.getElementById("confirm");
+    const passwordInput = password;
+    const confirmInput = confirm;
 
+    // =========================
+    // TOGGLE PASSWORD
+    // =========================
     togglePassword.addEventListener("click", () => {
         const type = passwordInput.type === "password" ? "text" : "password";
         passwordInput.type = type;
@@ -22,12 +26,24 @@ document.addEventListener("DOMContentLoaded", async () => {
         confirmInput.type = type;
         toggleConfirm.textContent = type === "password" ? "👁" : "🙈";
     });
+
+    // =========================
+    // CLIENT CHECK
+    // =========================
     if (!supabase) {
         msg.textContent = "Auth system not ready";
         return;
     }
 
-    // 💥 IMPORTANT: wait for Supabase recovery session
+    // =========================
+    // 🔥 IMPORTANT FIX: SUPABASE RECOVERY SESSION
+    // =========================
+    const hash = window.location.hash;
+
+    if (hash && hash.includes("access_token")) {
+        await supabase.auth.getSessionFromUrl({ storeSession: true });
+    }
+
     const { data: sessionData } = await supabase.auth.getSession();
 
     if (!sessionData?.session) {
@@ -35,6 +51,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
     }
 
+    // =========================
+    // RESET PASSWORD
+    // =========================
     form.addEventListener("submit", async (e) => {
         e.preventDefault();
 
