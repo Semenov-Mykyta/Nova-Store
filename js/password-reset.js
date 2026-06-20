@@ -1,13 +1,19 @@
 document.addEventListener("DOMContentLoaded", async () => {
-    const client = window.NovaAuth.createSupabaseClient();
+    const client = window.NovaAuth?.createSupabaseClient();
 
     const token = new URLSearchParams(window.location.search).get("token");
 
     const btn = document.getElementById("reset-btn");
     const msg = document.getElementById("msg");
     const input = document.getElementById("password");
+    const confirm = document.getElementById("confirm");
 
-    // 🔥 1. ПРОВЕРКА СРАЗУ ПРИ ЗАГРУЗКЕ
+    if (!client) {
+        msg.textContent = "Auth system not loaded";
+        btn.disabled = true;
+        return;
+    }
+
     if (!token) {
         msg.textContent = "Invalid reset link";
         btn.disabled = true;
@@ -37,13 +43,18 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     msg.textContent = "Enter your new password";
 
-    // 🔥 2. ТОЛЬКО ПОСЛЕ ЭТОГО РАЗРЕШАЕМ RESET
     btn.addEventListener("click", async () => {
 
         const password = input.value;
+        const confirmPassword = confirm.value;
 
         if (!password) {
             msg.textContent = "Enter password";
+            return;
+        }
+
+        if (password !== confirmPassword) {
+            msg.textContent = "Passwords do not match";
             return;
         }
 
