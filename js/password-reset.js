@@ -80,4 +80,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             window.location.href = "login.html";
         }, 1500);
     });
+    console.log("TOKEN FROM URL:", token);
+    console.log("DB RESULT:", data, error);
 });
