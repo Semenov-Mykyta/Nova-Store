@@ -42,7 +42,7 @@ serve(async (req) => {
         .insert({
           email,
           token,
-          expires_at: expiresAt.toISOString(),
+          expires_at: expiresAt,
           used: false
         });
 
