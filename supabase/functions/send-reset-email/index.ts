@@ -9,7 +9,6 @@ serve(async (req) => {
     "Access-Control-Allow-Methods": "POST, OPTIONS",
   };
 
-  // preflight
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -31,18 +30,20 @@ serve(async (req) => {
 
     // 1. generate token
     const token = crypto.randomUUID();
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+
+    // 💥 FIX: ALWAYS STORE ISO STRING
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
 
     console.log("Reset requested for:", email);
     console.log("Generated token:", token);
 
-    // 2. save to DB (IMPORTANT)
+    // 2. save to DB
     const { error: insertError } = await supabase
         .from("password_resets")
         .insert({
           email,
           token,
-          expires_at: expiresAt,
+          expires_at: expiresAt, // 💥 FIXED
           used: false
         });
 
@@ -93,7 +94,6 @@ serve(async (req) => {
       }),
     });
 
-    // 5. check email response
     if (!brevoRes.ok) {
       const errText = await brevoRes.text();
       console.error("Brevo error:", errText);

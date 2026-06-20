@@ -7,7 +7,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const msg = document.getElementById("msg");
     const input = document.getElementById("password");
     const confirm = document.getElementById("confirm");
-
+    alert("RESET JS LOADED");
     if (!client) {
         msg.textContent = "Auth system not loaded";
         btn.disabled = true;
