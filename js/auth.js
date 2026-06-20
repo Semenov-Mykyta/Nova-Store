@@ -192,4 +192,4 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     await refreshSessionUI();
-}); 
+});
