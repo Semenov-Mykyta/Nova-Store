@@ -24,8 +24,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     const { data, error } = await client
         .from("password_resets")
         .select("*")
-        .eq("token", token)
-        .single();
+        .eq("token", token);
+
+    console.log("TOKEN FROM URL:", token);
+    console.log("DB RESULT:", data);
+    console.log("DB ERROR:", error);
 
     if (error || !data) {
         msg.textContent = "Invalid or expired link";
