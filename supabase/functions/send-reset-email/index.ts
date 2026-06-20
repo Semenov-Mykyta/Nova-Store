@@ -38,19 +38,57 @@ serve(async (req) => {
         to: [{ email }],
         subject: "Reset your password",
         htmlContent: `
-<div style="font-family: Arial; text-align:center; padding:40px; background:#0f1115;">
+<div style="background:#0b0f14;padding:40px 0;font-family:Arial;">
 
-  <img src="https://vpznvbxgklqovibmoheq.supabase.co/storage/v1/object/public/logo/logo.svg"
-       style="width:120px;margin-bottom:20px;" />
+  <div style="max-width:520px;margin:0 auto;background:#111827;border-radius:16px;overflow:hidden;">
 
-  <h2 style="color:white;">Reset Password</h2>
+    <!-- HEADER -->
+    <div style="padding:30px;text-align:center;background:#0f172a;">
+      <h1 style="color:#ffffff;font-size:20px;margin:0;">
+        NovaStore
+      </h1>
+    </div>
 
-  <p style="color:#aaa;">Click the button below:</p>
+    <!-- BODY -->
+    <div style="padding:30px;text-align:center;">
 
-  <a href="${resetLink}"
-     style="display:inline-block;padding:12px 20px;background:#d7b46a;color:black;text-decoration:none;border-radius:8px;">
-    Reset Password
-  </a>
+      <h2 style="color:#ffffff;margin-bottom:10px;">
+        Reset your password
+      </h2>
+
+      <p style="color:#9ca3af;font-size:14px;margin-bottom:25px;">
+        We received a request to reset your password.  
+        If this wasn't you, you can ignore this email.
+      </p>
+
+      <!-- BUTTON -->
+      <a href="${resetLink}"
+         style="
+          display:inline-block;
+          padding:12px 24px;
+          background:#d7b46a;
+          color:#000;
+          text-decoration:none;
+          font-weight:bold;
+          border-radius:10px;
+         ">
+        Reset Password
+      </a>
+
+      <p style="color:#6b7280;font-size:12px;margin-top:25px;">
+        This link will open the password reset page.
+      </p>
+
+    </div>
+
+    <!-- FOOTER -->
+    <div style="padding:20px;text-align:center;background:#0f172a;">
+      <p style="color:#6b7280;font-size:11px;margin:0;">
+        © NovaStore
+      </p>
+    </div>
+
+  </div>
 
 </div>
 `,
