@@ -1,0 +1,6 @@
+/* CSS entrypoint kept for compatibility. Main styles are split by responsibility. */
+@import url("./base.css");
+@import url("./navbar.css");
+@import url("./sections.css");
+@import url("./pages.css");
+@import url("./responsive.css");

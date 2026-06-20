@@ -1,0 +1,12 @@
+.env
+.env.local
+.env.*.local
+
+supabase/.branches
+supabase/.temp
+supabase/.env
+
+.DS_Store
+Thumbs.db
+.idea
+.vscode

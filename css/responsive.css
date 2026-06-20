@@ -1,0 +1,51 @@
+/* Responsive rules */
+
+@media (min-width: 720px) {
+    .legal-layout { grid-template-columns: minmax(210px, 0.28fr) minmax(0, 0.72fr); }
+    .legal-sidebar { position: sticky; top: calc(var(--nav-height) + 1rem); }
+    .hero-inner { grid-template-columns: minmax(0, 1.15fr) minmax(340px, 0.85fr); align-items: center; }
+    .newsletter { flex-direction: row; align-items: center; justify-content: space-between; }
+    .newsletter-form { flex-direction: row; align-items: center; min-width: 420px; }
+    .newsletter-form input { flex: 1; }
+    .product-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .category-grid, .benefits-grid, .reviews-grid, .dashboard-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .support-layout { grid-template-columns: 1.05fr 1fr; }
+    .product-layout { grid-template-columns: 1.05fr 0.95fr; align-items: start; }
+    .footer-inner { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .shop-controls { grid-template-columns: minmax(0, 1fr) minmax(380px, 420px); }
+    .shop-filters { grid-template-columns: repeat(2, minmax(180px, 1fr)); }
+}
+
+@media (max-width: 768px) {
+    .container { padding: 0 1rem; }
+    .header-inner { min-height: 68px; }
+    .nav {
+        position: fixed;
+        inset: 68px 0 auto 0;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        padding: 1rem 1.5rem 1.3rem;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.85rem;
+        transform: translateY(-115%);
+        transition: transform var(--transition-med);
+    }
+    .nav.open { transform: translateY(0); }
+    .burger { display: flex; }
+    .header-actions { gap: 0.35rem; }
+    .header-actions .btn.ghost {
+        display: inline-flex;
+        padding: 0.55rem 0.75rem;
+        font-size: 0.78rem;
+    }
+    .nav-logout-btn {
+        padding: 0.55rem 0.75rem;
+        font-size: 0.78rem;
+    }
+    .nav-user-badge { display: none; }
+    .hero { padding: 3.2rem 0 2rem; }
+    .hero-visual { min-height: 280px; }
+    .section-header { display: block; }
+    .product-meta { align-items: flex-start; flex-direction: column; }
+}

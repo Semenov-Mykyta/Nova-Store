@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8" />
+    <title>Terms & Privacy – NovaStore</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="NovaStore terms of service and privacy policy." />
+    <link rel="icon" type="image/svg+xml" href="assets/logo.svg" />
+    <script>
+        (function () {
+            const THEME_KEY = "novastore_theme";
+            const stored = localStorage.getItem(THEME_KEY);
+
+            const theme = stored === "light" || stored === "dark"
+                ? stored
+                : (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+
+            document.documentElement.setAttribute("data-theme", theme);
+        })();
+    </script>
+    <link rel="stylesheet" href="css/base.css" />
+    <link rel="stylesheet" href="css/navbar.css" />
+    <link rel="stylesheet" href="css/sections.css" />
+    <link rel="stylesheet" href="css/pages.css" />
+    <link rel="stylesheet" href="css/responsive.css" />
+    <script defer src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+    <script defer src="js/translations.js"></script>
+    <script defer src="js/auth-core.js"></script>
+    <script defer src="js/cart.js"></script>
+    <script defer src="js/main.js"></script>
+    <script defer src="js/navbar-auth.js"></script>
+</head>
+<body>
+<div class="page-loader" id="page-loader">
+    <div class="loader-glass"></div>
+</div>
+
+<header class="header glass-nav fade-down">
+    <div class="container header-inner">
+        <a href="index.html" class="logo">
+            <img src="assets/logo.svg" alt="NovaStore Logo" />
+            <span class="logo-text">NovaStore</span>
+        </a>
+
+        <nav class="nav" id="nav">
+            <a href="index.html" data-i18n="nav.home"></a>
+            <a href="shop.html" data-i18n="nav.shop"></a>
+            <a href="support.html" data-i18n="nav.support"></a>
+            <a href="my-orders.html" id="my-orders-link" data-i18n="nav.orders"></a>
+        </nav>
+
+        <div class="header-actions">
+            <button class="btn-icon" id="lang-toggle" aria-label="Language">
+                <span id="lang-label">EN</span>
+            </button>
+            <button class="btn-icon" id="theme-toggle" aria-label="Theme">
+                <span class="theme-icon">🌙</span>
+            </button>
+            <a href="login.html" class="btn ghost" data-i18n="nav.login"></a>
+            <div class="nav-user-badge" id="nav-user-badge" hidden>
+                <span class="nav-user-dot"></span>
+                <span class="nav-user-email-text" id="nav-user-email-text"></span>
+            </div>
+            <button class="btn-icon cart-btn" id="cart-toggle" aria-label="Cart">
+                <span class="cart-icon">🛒</span>
+                <span class="cart-count" id="cart-count">0</span>
+            </button>
+            <button class="burger" id="burger" aria-label="Menu">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+    </div>
+</header>
+
+<aside class="cart-sidebar" id="cart-sidebar" aria-label="Shopping cart">
+    <div class="cart-header">
+        <h2 data-i18n="cart.title"></h2>
+        <button class="btn-icon" id="cart-close" aria-label="Close cart">✕</button>
+    </div>
+    <div class="cart-items" id="cart-items"></div>
+    <div class="cart-footer">
+        <div class="cart-total">
+            <span data-i18n="cart.total"></span>
+            <span id="cart-total-amount">€0.00</span>
+        </div>
+        <button class="btn primary full" data-i18n="cart.checkout"></button>
+    </div>
+</aside>
+
+<main class="fade-in">
+    <section class="legal-hero">
+        <div class="container">
+            <div class="legal-hero-card glass-card">
+                <span class="legal-kicker" data-i18n="legal.kicker"></span>
+                <h1 data-i18n="legal.title"></h1>
+                <p data-i18n="legal.subtitle"></p>
+                <div class="legal-actions">
+                    <a href="#terms" class="btn primary ripple" data-i18n="legal.terms_link"></a>
+                    <a href="#privacy" class="btn ghost ripple" data-i18n="legal.privacy_link"></a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section legal-section-wrap">
+        <div class="container legal-layout">
+            <aside class="legal-sidebar glass-card">
+                <span class="legal-small" data-i18n="legal.on_page"></span>
+                <a href="#terms" data-i18n="legal.terms_link"></a>
+                <a href="#privacy" data-i18n="legal.privacy_link"></a>
+                <a href="#contact-legal" data-i18n="legal.contact_link"></a>
+            </aside>
+
+            <div class="legal-content">
+                <article class="legal-panel glass-card" id="terms">
+                    <div class="legal-panel-header">
+                        <span class="legal-kicker" data-i18n="legal.terms_kicker"></span>
+                        <h2 data-i18n="legal.terms_title"></h2>
+                        <p class="last-updated" data-i18n="legal.updated"></p>
+                    </div>
+
+                    <div class="legal-block">
+                        <h3 data-i18n="legal.terms_section_1_title"></h3>
+                        <p data-i18n="legal.terms_section_1_text"></p>
+                    </div>
+                    <div class="legal-block">
+                        <h3 data-i18n="legal.terms_section_2_title"></h3>
+                        <p data-i18n="legal.terms_section_2_text"></p>
+                    </div>
+                    <div class="legal-block">
+                        <h3 data-i18n="legal.terms_section_3_title"></h3>
+                        <p data-i18n="legal.terms_section_3_text"></p>
+                    </div>
+                    <div class="legal-block">
+                        <h3 data-i18n="legal.terms_section_4_title"></h3>
+                        <p data-i18n="legal.terms_section_4_text"></p>
+                    </div>
+                    <div class="legal-note">
+                        <strong data-i18n="legal.note_title"></strong>
+                        <span data-i18n="legal.terms_note"></span>
+                    </div>
+                </article>
+
+                <article class="legal-panel glass-card" id="privacy">
+                    <div class="legal-panel-header">
+                        <span class="legal-kicker" data-i18n="legal.privacy_kicker"></span>
+                        <h2 data-i18n="legal.privacy_title"></h2>
+                        <p class="last-updated" data-i18n="legal.updated"></p>
+                    </div>
+
+                    <div class="legal-block">
+                        <h3 data-i18n="legal.privacy_section_1_title"></h3>
+                        <p data-i18n="legal.privacy_section_1_text"></p>
+                    </div>
+                    <div class="legal-block">
+                        <h3 data-i18n="legal.privacy_section_2_title"></h3>
+                        <p data-i18n="legal.privacy_section_2_text"></p>
+                    </div>
+                    <div class="legal-block">
+                        <h3 data-i18n="legal.privacy_section_3_title"></h3>
+                        <p data-i18n="legal.privacy_section_3_text"></p>
+                    </div>
+                    <div class="legal-block">
+                        <h3 data-i18n="legal.privacy_section_4_title"></h3>
+                        <p data-i18n="legal.privacy_section_4_text"></p>
+                    </div>
+                    <div class="legal-note" id="contact-legal">
+                        <strong data-i18n="legal.contact_title"></strong>
+                        <span data-i18n="legal.contact_text"></span>
+                    </div>
+                </article>
+            </div>
+        </div>
+    </section>
+</main>
+
+<footer class="footer fade-in">
+    <div class="container footer-inner">
+        <div class="footer-col">
+            <h4>NovaStore</h4>
+            <p data-i18n="footer.tagline"></p>
+        </div>
+
+        <div class="footer-col">
+            <h4 data-i18n="footer.links"></h4>
+            <div class="footer-links">
+                <a href="shop.html" data-i18n="footer.shop"></a>
+                <a href="support.html" data-i18n="footer.support"></a>
+                <a href="legal.html#terms" data-i18n="footer.terms"></a>
+                <a href="legal.html#privacy" data-i18n="footer.privacy"></a>
+            </div>
+        </div>
+
+        <div class="footer-col">
+            <h4 data-i18n="footer.contact"></h4>
+
+            <a class="footer-email" href="mailto:support@novastore.app">
+                support@novastore.app
+            </a>
+
+            <div class="socials" aria-label="Social links">
+                <a href="https://instagram.com" target="_blank" rel="noopener" aria-label="Instagram">Instagram</a>
+                <a href="https://x.com" target="_blank" rel="noopener" aria-label="X">X</a>
+                <a href="https://linkedin.com" target="_blank" rel="noopener" aria-label="LinkedIn">LinkedIn</a>
+            </div>
+        </div>
+    </div>
+</footer>
+</body>
+</html>

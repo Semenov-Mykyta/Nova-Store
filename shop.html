@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8" />
+    <title>Shop – NovaStore</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href="assets/logo.svg" />
+    <script>
+        (function () {
+            const THEME_KEY = "novastore_theme";
+            const stored = localStorage.getItem(THEME_KEY);
+
+            const theme = stored === "light" || stored === "dark"
+                ? stored
+                : (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+
+            document.documentElement.setAttribute("data-theme", theme);
+        })();
+    </script>
+    <link rel="stylesheet" href="css/base.css" />
+    <link rel="stylesheet" href="css/navbar.css" />
+    <link rel="stylesheet" href="css/sections.css" />
+    <link rel="stylesheet" href="css/pages.css" />
+    <link rel="stylesheet" href="css/responsive.css" />
+    <script defer src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+    <script defer src="js/translations.js"></script>
+    <script defer src="js/auth-core.js"></script>
+    <script defer src="js/cart.js"></script>
+    <script defer src="js/main.js"></script>
+    <script defer src="js/navbar-auth.js"></script>
+</head>
+<body>
+<header class="header glass-nav fade-down">
+    <div class="container header-inner">
+        <a href="index.html" class="logo">
+            <img src="assets/logo.svg" alt="NovaStore Logo" />
+            <span class="logo-text">NovaStore</span>
+        </a>
+        <nav class="nav" id="nav">
+            <a href="index.html" data-i18n="nav.home"></a>
+            <a href="shop.html" data-i18n="nav.shop"></a>
+            <a href="support.html" data-i18n="nav.support"></a>
+            <a href="my-orders.html" id="my-orders-link" data-i18n="nav.orders"></a>
+        </nav>
+        <div class="header-actions">
+            <button class="btn-icon" id="lang-toggle"><span id="lang-label">EN</span></button>
+            <button class="btn-icon" id="theme-toggle"><span class="theme-icon">🌙</span></button>
+            <a href="login.html" class="btn ghost" data-i18n="nav.login"></a>
+            <div class="nav-user-badge" id="nav-user-badge" hidden>
+                <span class="nav-user-dot"></span>
+                <span class="nav-user-email-text" id="nav-user-email-text"></span>
+            </div>
+            <button class="btn-icon cart-btn" id="cart-toggle">
+                <span class="cart-icon">🛒</span>
+                <span class="cart-count" id="cart-count">0</span>
+            </button>
+            <button class="burger" id="burger"><span></span><span></span><span></span></button>
+        </div>
+    </div>
+</header>
+
+<aside class="cart-sidebar" id="cart-sidebar">
+    <div class="cart-header">
+        <h2 data-i18n="cart.title"></h2>
+        <button class="btn-icon" id="cart-close">✕</button>
+    </div>
+    <div class="cart-items" id="cart-items"></div>
+    <div class="cart-footer">
+        <div class="cart-total">
+            <span data-i18n="cart.total"></span>
+            <span id="cart-total-amount">€0.00</span>
+        </div>
+        <button class="btn primary full" data-i18n="cart.checkout"></button>
+    </div>
+</aside>
+
+<main class="fade-in">
+    <section class="section">
+        <div class="container">
+            <div class="section-header">
+                <h1 data-i18n="shop.title"></h1>
+                <p data-i18n="shop.subtitle"></p>
+            </div>
+
+            <div class="shop-controls glass-card">
+                <div class="shop-search">
+                    <input type="search" id="product-search" placeholder="Search products..." data-i18n-placeholder="shop.search_placeholder" />
+                </div>
+                <div class="shop-filters">
+                    <select id="category-filter">
+                        <option value="all" data-i18n="shop.filter_all"></option>
+                        <option value="tech" data-i18n="categories.tech"></option>
+                        <option value="fashion" data-i18n="categories.fashion"></option>
+                        <option value="accessories" data-i18n="categories.accessories"></option>
+                    </select>
+                    <select id="sort-by">
+                        <option value="featured" data-i18n="shop.sort_featured"></option>
+                        <option value="price_asc" data-i18n="shop.sort_price_asc"></option>
+                        <option value="price_desc" data-i18n="shop.sort_price_desc"></option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="product-grid" id="shop-products"></div>
+        </div>
+    </section>
+</main>
+
+<footer class="footer fade-in">
+    <div class="container footer-inner">
+        <div class="footer-col">
+            <h4>NovaStore</h4>
+            <p data-i18n="footer.tagline"></p>
+        </div>
+        <div class="footer-col">
+            <h4 data-i18n="footer.links"></h4>
+            <a href="shop.html" data-i18n="footer.shop"></a>
+            <a href="support.html" data-i18n="footer.support"></a>
+            <a href="legal.html#terms" data-i18n="footer.terms"></a>
+            <a href="legal.html#privacy" data-i18n="footer.privacy"></a>
+        </div>
+        <div class="footer-col">
+            <h4 data-i18n="footer.contact"></h4>
+            <p>support@novastore.app</p>
+        </div>
+    </div>
+</footer>
+</body>
+</html>

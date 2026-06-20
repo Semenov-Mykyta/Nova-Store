@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8" />
+    <title>Login – NovaStore</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href="assets/logo.svg" />
+    <script>
+        (function () {
+            const THEME_KEY = "novastore_theme";
+            const stored = localStorage.getItem(THEME_KEY);
+
+            const theme = stored === "light" || stored === "dark"
+                ? stored
+                : (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+
+            document.documentElement.setAttribute("data-theme", theme);
+        })();
+    </script>
+    <link rel="stylesheet" href="css/base.css" />
+    <link rel="stylesheet" href="css/navbar.css" />
+    <link rel="stylesheet" href="css/sections.css" />
+    <link rel="stylesheet" href="css/pages.css" />
+    <link rel="stylesheet" href="css/responsive.css" />
+    <script defer src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+    <script defer src="js/translations.js"></script>
+    <script defer src="js/auth-core.js"></script>
+    <script defer src="js/auth.js"></script>
+    <script defer src="js/cart.js"></script>
+    <script defer src="js/main.js"></script>
+    <script defer src="js/navbar-auth.js"></script>
+</head>
+<body>
+<header class="header glass-nav fade-down">
+    <div class="container header-inner">
+        <a href="index.html" class="logo">
+            <img src="assets/logo.svg" alt="NovaStore Logo" />
+            <span class="logo-text">NovaStore</span>
+        </a>
+        <nav class="nav" id="nav">
+            <a href="index.html" data-i18n="nav.home"></a>
+            <a href="shop.html" data-i18n="nav.shop"></a>
+            <a href="support.html" data-i18n="nav.support"></a>
+            <a href="my-orders.html" id="my-orders-link" data-i18n="nav.orders"></a>
+        </nav>
+        <div class="header-actions">
+            <button class="btn-icon" id="lang-toggle"><span id="lang-label">EN</span></button>
+            <button class="btn-icon" id="theme-toggle"><span class="theme-icon">🌙</span></button>
+            <button class="btn-icon cart-btn" id="cart-toggle">
+                <span class="cart-icon">🛒</span>
+                <span class="cart-count" id="cart-count">0</span>
+            </button>
+            <button class="burger" id="burger"><span></span><span></span><span></span></button>
+        </div>
+    </div>
+</header>
+
+<aside class="cart-sidebar" id="cart-sidebar">
+    <div class="cart-header">
+        <h2 data-i18n="cart.title"></h2>
+        <button class="btn-icon" id="cart-close">✕</button>
+    </div>
+    <div class="cart-items" id="cart-items"></div>
+    <div class="cart-footer">
+        <div class="cart-total">
+            <span data-i18n="cart.total"></span>
+            <span id="cart-total-amount">€0.00</span>
+        </div>
+        <button class="btn primary full" data-i18n="cart.checkout"></button>
+    </div>
+</aside>
+
+<main class="fade-in">
+    <section class="section auth-section">
+        <div class="container auth-layout glass-card">
+            <div class="auth-tabs">
+                <button class="auth-tab active" data-auth-tab="login" data-i18n="auth.login_tab"></button>
+                <button class="auth-tab" data-auth-tab="register" data-i18n="auth.register_tab"></button>
+            </div>
+
+            <div class="auth-forms">
+                <form id="login-form" class="auth-form active" novalidate>
+                    <h1 data-i18n="auth.login_title"></h1>
+                    <div class="form-group">
+                        <label for="login-email" data-i18n="auth.email"></label>
+                        <input type="email" id="login-email" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="login-password" data-i18n="auth.password"></label>
+                        <input type="password" id="login-password" required />
+                    </div>
+                    <button type="submit" class="btn primary full ripple" data-i18n="auth.login_btn"></button>
+                    <button type="button" id="forgot-password-btn" class="link-btn" data-i18n="auth.forgot_password"></button>
+                    <div class="auth-social">
+                        <p data-i18n="auth.social_placeholder"></p>
+                    </div>
+                    <div class="auth-status" id="login-status"></div>
+                </form>
+
+                <form id="register-form" class="auth-form" novalidate>
+                    <h1 data-i18n="auth.register_title"></h1>
+                    <div class="form-group">
+                        <label for="register-email" data-i18n="auth.email"></label>
+                        <input type="email" id="register-email" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="register-password" data-i18n="auth.password"></label>
+                        <input type="password" id="register-password" required />
+                    </div>
+                    <button type="submit" class="btn primary full ripple" data-i18n="auth.register_btn"></button>
+                    <div class="auth-status" id="register-status"></div>
+                </form>
+            </div>
+        </div>
+    </section>
+
+    <section class="section fade-in" id="dashboard" hidden>
+        <div class="container glass-card dashboard">
+            <h2 data-i18n="dashboard.title"></h2>
+            <p id="dashboard-email"></p>
+
+            <div class="dashboard-grid">
+                <div class="dashboard-card">
+                    <h3 data-i18n="dashboard.profile"></h3>
+                    <p data-i18n="dashboard.profile_desc"></p>
+                </div>
+                <div class="dashboard-card">
+                    <h3 data-i18n="dashboard.orders"></h3>
+                    <p data-i18n="dashboard.orders_desc"></p>
+                </div>
+                <div class="dashboard-card">
+                    <h3 data-i18n="dashboard.settings"></h3>
+                    <p data-i18n="dashboard.settings_desc"></p>
+                </div>
+                <div class="dashboard-card">
+                    <h3 data-i18n="dashboard.security"></h3>
+                    <p data-i18n="dashboard.security_desc"></p>
+                </div>
+            </div>
+
+            <button id="logout-btn" class="btn ghost ripple" data-i18n="dashboard.logout"></button>
+        </div>
+    </section>
+</main>
+
+<footer class="footer fade-in">
+    <div class="container footer-inner">
+        <div class="footer-col">
+            <h4>NovaStore</h4>
+            <p data-i18n="footer.tagline"></p>
+        </div>
+        <div class="footer-col">
+            <h4 data-i18n="footer.links"></h4>
+            <a href="shop.html" data-i18n="footer.shop"></a>
+            <a href="support.html" data-i18n="footer.support"></a>
+            <a href="legal.html#terms" data-i18n="footer.terms"></a>
+            <a href="legal.html#privacy" data-i18n="footer.privacy"></a>
+        </div>
+        <div class="footer-col">
+            <h4 data-i18n="footer.contact"></h4>
+            <p>support@novastore.app</p>
+        </div>
+    </div>
+</footer>
+</body>
+</html>
