@@ -8,44 +8,64 @@ const corsHeaders = {
   "Content-Type": "application/json",
 };
 
-type IncomingCartItem = {
-  id?: string;
-  product_id?: string;
-  qty?: number | string;
-  quantity?: number | string;
-};
-
-type ProductRow = {
-  id: string;
-  name: string | null;
-  price: number | string | null;
-  is_active?: boolean | null;
-};
-
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: corsHeaders });
 }
 
-function normalizeQuantity(value: unknown) {
-  const quantity = Number(value);
-  if (!Number.isFinite(quantity)) return 1;
-  return Math.max(1, Math.min(99, Math.floor(quantity)));
+/* =========================
+   BREVO EMAIL
+========================= */
+async function sendEmail(to: string, subject: string, html: string) {
+  const apiKey = Deno.env.get("BREVO_API_KEY");
+  const fromEmail = Deno.env.get("FROM_EMAIL");
+  const fromName = Deno.env.get("FROM_NAME");
+
+  if (!apiKey) throw new Error("Missing BREVO_API_KEY");
+
+  await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: {
+      "api-key": apiKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      sender: {
+        name: fromName,
+        email: fromEmail,
+      },
+      to: [{ email: to }],
+      subject,
+      htmlContent: html,
+    }),
+  });
 }
 
-function getRequestedItems(rawItems: IncomingCartItem[]) {
-  const quantityByProductId = new Map<string, number>();
+/* =========================
+   HELPERS
+========================= */
+function normalizeQty(value: unknown) {
+  const q = Number(value);
+  if (!Number.isFinite(q)) return 1;
+  return Math.max(1, Math.min(99, Math.floor(q)));
+}
 
-  for (const rawItem of rawItems) {
-    const productId = String(rawItem.product_id || rawItem.id || "").trim();
-    if (!productId) continue;
+function getItems(items: any[]) {
+  const map = new Map<string, number>();
 
-    const quantity = normalizeQuantity(rawItem.quantity ?? rawItem.qty ?? 1);
-    quantityByProductId.set(productId, (quantityByProductId.get(productId) || 0) + quantity);
+  for (const i of items || []) {
+    const id = String(i.id || i.product_id || "").trim();
+    if (!id) continue;
+
+    const qty = normalizeQty(i.qty ?? i.quantity ?? 1);
+    map.set(id, (map.get(id) || 0) + qty);
   }
 
-  return quantityByProductId;
+  return map;
 }
 
+/* =========================
+   MAIN
+========================= */
 // @ts-ignore
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -53,146 +73,134 @@ Deno.serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) return json({ error: "Missing Authorization header" }, 401);
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
-    const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey) {
-      return json({
-        error: "Missing Supabase environment variables",
-        details: "SUPABASE_URL, SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY are required",
-      }, 500);
-    }
-
-    const authClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
+    const authClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader! } },
     });
 
-    const adminClient = createClient(supabaseUrl, supabaseServiceRoleKey);
+    const admin = createClient(supabaseUrl, serviceKey);
 
-    const { data: userData, error: userError } = await authClient.auth.getUser();
+    const { data: userData } = await authClient.auth.getUser();
     const user = userData?.user;
 
-    if (userError || !user) {
-      return json({ error: "Unauthorized", details: userError?.message || "No user found" }, 401);
-    }
+    if (!user) return json({ error: "Unauthorized" }, 401);
 
     const body = await req.json().catch(() => ({}));
-    const rawItems = Array.isArray(body?.items)
-      ? body.items
-      : Array.isArray(body?.cart)
-        ? body.cart
-        : [];
+    const itemsMap = getItems(body.items || body.cart || []);
 
-    const quantityByProductId = getRequestedItems(rawItems);
-    const productIds = [...quantityByProductId.keys()];
+    if (!itemsMap.size) return json({ error: "Empty cart" }, 400);
 
-    if (productIds.length === 0) {
-      return json({ error: "Cart is empty or invalid" }, 400);
-    }
+    const productIds = [...itemsMap.keys()];
 
-    let products: ProductRow[] | null = null;
-
-    // Preferred schema with is_active.
-    const fullProductsResult = await adminClient
-      .from("products")
-      .select("id, name, price, is_active")
-      .in("id", productIds);
-
-    if (!fullProductsResult.error) {
-      products = (fullProductsResult.data || []).filter((product: ProductRow) => product.is_active !== false);
-    } else {
-      // Fallback for minimal products table without is_active.
-      console.warn("Full products query failed, trying minimal schema:", fullProductsResult.error);
-
-      const minimalProductsResult = await adminClient
+    const { data: products, error } = await admin
         .from("products")
         .select("id, name, price")
         .in("id", productIds);
 
-      if (minimalProductsResult.error) {
-        return json({
-          error: "Could not load products",
-          details: minimalProductsResult.error.message,
-        }, 500);
-      }
-
-      products = minimalProductsResult.data || [];
-    }
-
-    if (!products || products.length !== productIds.length) {
-      return json({ error: "Some products are invalid or unavailable" }, 400);
+    if (error || !products) {
+      return json({ error: "Products load failed" }, 500);
     }
 
     let total = 0;
 
-    const orderItems = products.map((product) => {
-      const quantity = quantityByProductId.get(String(product.id)) || 1;
-      const price = Number(product.price || 0);
+    const orderItems = products.map(p => {
+      const qty = itemsMap.get(p.id) || 1;
+      const price = Number(p.price || 0);
 
-      if (!Number.isFinite(price) || price < 0) {
-        throw new Error(`Invalid price for product ${product.id}`);
-      }
-
-      total += price * quantity;
+      total += price * qty;
 
       return {
-        product_id: String(product.id),
-        title: product.name || "Product",
-        quantity,
+        product_id: p.id,
+        title: p.name,
+        quantity: qty,
         price,
       };
     });
 
-    const { data: order, error: orderError } = await adminClient
-      .from("orders")
-      .insert({
-        user_id: user.id,
-        total,
-        status: "pending",
-      })
-      .select("id, total, status, created_at")
-      .single();
+    /* =========================
+       CREATE ORDER
+    ========================= */
+    const { data: order, error: orderError } = await admin
+        .from("orders")
+        .insert({
+          user_id: user.id,
+          total,
+          status: "pending",
+        })
+        .select()
+        .single();
 
     if (orderError || !order) {
-      console.error("Order insert failed:", orderError);
-      return json({ error: "Order was not created", details: orderError?.message || orderError }, 500);
+      return json({ error: "Order create failed" }, 500);
     }
 
-    const itemsPayload = orderItems.map((item) => ({
-      order_id: order.id,
-      product_id: item.product_id,
-      title: item.title,
-      quantity: item.quantity,
-      price: item.price,
-    }));
+    await admin.from("order_items").insert(
+        orderItems.map(i => ({
+          order_id: order.id,
+          ...i,
+        }))
+    );
 
-    const { error: itemsError } = await adminClient.from("order_items").insert(itemsPayload);
+    /* =========================
+       EMAILS
+    ========================= */
 
-    if (itemsError) {
-      await adminClient.from("orders").delete().eq("id", order.id);
+    const ORDER_EMAIL = Deno.env.get("ORDER_EMAIL")!;
 
-      console.error("Order items insert failed:", itemsError);
-      return json({
-        error: "Order items were not created",
-        details: itemsError.message || itemsError,
-      }, 500);
-    }
+    const itemsHtml = orderItems
+        .map(i => `<li>${i.title} × ${i.quantity}</li>`)
+        .join("");
 
+    // 🏪 STORE EMAIL
+    const storeEmailHtml = `
+      <h2>🛒 New Order #${order.id}</h2>
+      <p>User: ${user.email}</p>
+      <p>Total: €${total.toFixed(2)}</p>
+      <ul>${itemsHtml}</ul>
+    `;
+
+    // 👤 CUSTOMER EMAIL
+    const customerEmailHtml = `
+      <h2>✅ Order Confirmed</h2>
+      <p>Hi ${user.email},</p>
+      <p>Your order <b>#${order.id}</b> is confirmed.</p>
+      <ul>${itemsHtml}</ul>
+      <p><b>Total:</b> €${total.toFixed(2)}</p>
+      <p>We will notify you when it ships 🚚</p>
+    `;
+
+    await Promise.allSettled([
+      sendEmail(
+          ORDER_EMAIL,
+          `New Order #${order.id}`,
+          storeEmailHtml
+      ),
+      sendEmail(
+          user.email,
+          `Your order #${order.id}`,
+          customerEmailHtml
+      )
+    ]);
+
+    /* =========================
+       RESPONSE
+    ========================= */
     return json({
       success: true,
       order_id: order.id,
-      total: order.total,
+      total,
       status: order.status,
-      created_at: order.created_at,
     });
+
   } catch (err) {
-    console.error("Checkout function error:", err);
+    console.error(err);
     return json({
       error: "Server error",
-      details: err instanceof Error ? err.message : String(err),
+      details: String(err),
     }, 500);
   }
 });
