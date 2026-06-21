@@ -8,8 +8,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     const registerStatus = document.getElementById("register-status");
     const forgotBtn = document.getElementById("forgot-password-btn");
     const logoutBtn = document.getElementById("logout-btn");
-    const dashboard = document.getElementById("dashboard");
-    const dashboardEmail = document.getElementById("dashboard-email");
 
     function setStatus(el, msg, type = "") {
         if (!el) return;
@@ -81,7 +79,30 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     // ======================
-    // FORGOT PASSWORD (FIXED)
+    // UI COOLDOWN TIMER
+    // ======================
+    function startButtonCooldown(btn, seconds) {
+        let remaining = seconds;
+        const originalText = btn.textContent;
+
+        btn.disabled = true;
+
+        const interval = setInterval(() => {
+            remaining--;
+
+            if (remaining <= 0) {
+                clearInterval(interval);
+                btn.disabled = false;
+                btn.textContent = originalText;
+                return;
+            }
+
+            btn.textContent = `Wait ${remaining}s`;
+        }, 1000);
+    }
+
+    // ======================
+    // FORGOT PASSWORD (UI + EMAIL COOLDOWN)
     // ======================
     if (forgotBtn) {
         forgotBtn.addEventListener("click", async () => {
@@ -92,22 +113,66 @@ document.addEventListener("DOMContentLoaded", async () => {
                 return;
             }
 
+            const now = Date.now();
+
+            // ======================
+            // 🟡 EMAIL COOLDOWN (10 MIN)
+            // ======================
+            const emailKey = `reset_email_${email}`;
+            const lastEmail = localStorage.getItem(emailKey);
+            const EMAIL_COOLDOWN = 10 * 60 * 1000;
+
+            if (lastEmail && now - Number(lastEmail) < EMAIL_COOLDOWN) {
+                const left = Math.ceil((EMAIL_COOLDOWN - (now - Number(lastEmail))) / 60000);
+                setStatus(loginStatus, `Please wait ${left} min before requesting again`, "error");
+                return;
+            }
+
+            // ======================
+            // 🟢 UI COOLDOWN (60s)
+            // ======================
+            const uiKey = `reset_ui_${email}`;
+            const lastUI = localStorage.getItem(uiKey);
+            const UI_COOLDOWN = 60 * 1000;
+
+            if (lastUI && now - Number(lastUI) < UI_COOLDOWN) {
+                const left = Math.ceil((UI_COOLDOWN - (now - Number(lastUI))) / 1000);
+                setStatus(loginStatus, `Wait ${left}s`, "error");
+                return;
+            }
+
             forgotBtn.disabled = true;
             const oldText = forgotBtn.textContent;
             forgotBtn.textContent = "Sending...";
 
-            const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
-                redirectTo: `${window.location.origin}/password-reset.html`
-            });
+            try {
+                const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+                    redirectTo: `${window.location.origin}/Nova-Store/password-reset.html`
+                });
 
-            if (error) {
-                setStatus(loginStatus, error.message, "error");
-            } else {
+                if (error) {
+                    setStatus(loginStatus, error.message, "error");
+                    return;
+                }
+
+                // save timestamps
+                localStorage.setItem(emailKey, String(now));
+                localStorage.setItem(uiKey, String(now));
+
                 setStatus(loginStatus, "Check your email for reset link", "success");
-            }
 
-            forgotBtn.disabled = false;
-            forgotBtn.textContent = oldText;
+                // UI timer
+                startButtonCooldown(forgotBtn, 60);
+
+            } catch (err) {
+                console.error(err);
+                setStatus(loginStatus, "Failed to send reset email", "error");
+            } finally {
+                setTimeout(() => {
+                    forgotBtn.disabled = false;
+                    forgotBtn.textContent = oldText || "Forgot password?";
+                }, 1000);
+            }
         });
     }
 
