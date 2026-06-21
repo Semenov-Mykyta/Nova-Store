@@ -39,11 +39,21 @@
         padding: 0.55rem 0.75rem;
         font-size: 0.78rem;
     }
-    .nav-logout-btn {
-        padding: 0.55rem 0.75rem;
-        font-size: 0.78rem;
+    .nav-user-email-text {
+        display: none;
     }
-    .nav-user-badge { display: none; }
+    .nav-user-badge {
+        width: 38px;
+        height: 38px;
+        padding: 0;
+        justify-content: center;
+    }
+    .nav-profile-icon { display: inline-flex; }
+    .nav-profile-chevron { display: none; }
+    .nav-profile-dropdown {
+        right: -48px;
+        min-width: 170px;
+    }
     .hero { padding: 3.2rem 0 2rem; }
     .hero-visual { min-height: 280px; }
     .section-header { display: block; }

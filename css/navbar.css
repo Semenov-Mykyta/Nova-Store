@@ -151,6 +151,89 @@
     background: var(--text);
 }
 
+
+/* My Orders is now available inside the profile dropdown. */
+.nav a#my-orders-link {
+    display: none !important;
+}
+
+.nav-profile-menu {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.nav-profile-menu[hidden],
+.nav-profile-dropdown[hidden] {
+    display: none !important;
+}
+
+.nav-profile-chevron {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    transition: transform var(--transition-fast);
+}
+
+.nav-profile-icon {
+    display: none;
+    font-size: 0.95rem;
+    line-height: 1;
+}
+
+.nav-profile-menu.open .nav-profile-chevron {
+    transform: rotate(180deg);
+}
+
+.nav-profile-menu .nav-user-badge {
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.nav-profile-dropdown {
+    position: absolute;
+    top: calc(100% + 0.55rem);
+    right: 0;
+    min-width: 190px;
+    padding: 0.45rem;
+    border-radius: 18px;
+    border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--surface) 94%, transparent);
+    box-shadow: var(--shadow-soft);
+    backdrop-filter: blur(18px);
+    z-index: 80;
+}
+
+.nav-profile-dropdown-item {
+    width: 100%;
+    border: 0;
+    border-radius: 13px;
+    padding: 0.72rem 0.85rem;
+    background: transparent;
+    color: var(--text);
+    font: inherit;
+    font-size: 0.88rem;
+    font-weight: 650;
+    text-align: left;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.nav-profile-dropdown-item:hover {
+    background: var(--surface-muted);
+}
+
+.nav-profile-logout {
+    color: #ef4444;
+}
+
+.nav-profile-logout.is-loading {
+    opacity: 0.65;
+    cursor: wait;
+}
+
 /* ── Logged-in user badge (shown alongside the Login button) ──────────── */
 .nav-user-badge {
     display: inline-flex;
@@ -194,6 +277,7 @@
 /* Logout button appears only after successful login. */
 .nav-logout-btn[hidden],
 .nav-user-badge[hidden],
+.nav-profile-menu[hidden],
 .header-actions a[hidden] {
     display: none !important;
 }

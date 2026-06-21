@@ -4,6 +4,95 @@ const THEME_TRANSITION_MS = 420;
 let themeTransitionTimer = null;
 let PRODUCTS = [];
 
+const FALLBACK_PRODUCTS = [
+    {
+        id: "1",
+        title: "PowerCore 10000",
+        description: "Compact power bank for phones, earbuds and everyday carry.",
+        description_de: "Kompakte Powerbank für Smartphones, Kopfhörer und unterwegs.",
+        price: 49,
+        category: "accessories",
+        image: "assets/products/powerbank1.jpg",
+        rating: 4,
+        created_at: "2026-01-01"
+    },
+    {
+        id: "2",
+        title: "FastCharge Pro",
+        description: "Fast USB-C wall charger with a clean minimal design.",
+        description_de: "Schnelles USB-C Ladegerät mit minimalistischem Design.",
+        price: 39,
+        category: "accessories",
+        image: "assets/products/charger1.jpg",
+        rating: 4,
+        created_at: "2026-01-02"
+    },
+    {
+        id: "3",
+        title: "NovaPods Air",
+        description: "Lightweight wireless earbuds with clear sound and all-day comfort.",
+        description_de: "Leichte kabellose Kopfhörer mit klarem Sound und hohem Tragekomfort.",
+        price: 129,
+        category: "tech",
+        image: "assets/products/headphones1.jpg",
+        rating: 5,
+        created_at: "2026-01-03"
+    },
+    {
+        id: "4",
+        title: "PureAudio Elite",
+        description: "Audiophile-grade over-ear headphones with hi-res sound.",
+        description_de: "Over-Ear-Kopfhörer mit Hi-Res-Sound für Audiophile.",
+        price: 299,
+        category: "tech",
+        image: "assets/products/headphones4.jpg",
+        rating: 5,
+        created_at: "2026-01-04"
+    },
+    {
+        id: "5",
+        title: "BassFlow Studio",
+        description: "Premium headphones with deep bass and soft ear cushions.",
+        description_de: "Premium-Kopfhörer mit tiefem Bass und weichen Ohrpolstern.",
+        price: 219,
+        category: "tech",
+        image: "assets/products/headphones5.jpg",
+        rating: 5,
+        created_at: "2026-01-05"
+    },
+    {
+        id: "6",
+        title: "MagCharge Duo",
+        description: "Dual charging accessory for a tidy desk or nightstand.",
+        description_de: "Duales Ladezubehör für einen aufgeräumten Schreibtisch oder Nachttisch.",
+        price: 69,
+        category: "accessories",
+        image: "assets/products/charger3.jpg",
+        rating: 4,
+        created_at: "2026-01-06"
+    }
+];
+
+function useFallbackProducts(reason = "") {
+    if (reason) {
+        console.warn(`Using local fallback products: ${reason}`);
+    }
+
+    PRODUCTS = FALLBACK_PRODUCTS.map((product) => ({ ...product }));
+    return PRODUCTS;
+}
+
+function withTimeout(promise, ms, message) {
+    let timer;
+
+    const timeout = new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(message)), ms);
+    });
+
+    return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+
 /**
  * Updates all theme icons on the page
  */
@@ -104,16 +193,14 @@ function initHeader() {
 }
 
 /**
- * Shows or hides My Orders link depending on auth state
+ * The My Orders action lives in the profile dropdown, not in the top nav.
  */
-async function updateMyOrdersVisibility() {
+function updateMyOrdersVisibility() {
     const link = document.getElementById("my-orders-link");
     if (!link) return;
 
-    const user = await window.NovaAuth?.getCurrentUser?.();
-
-    link.hidden = !user;
-    link.style.display = user ? "inline-block" : "none";
+    link.hidden = true;
+    link.style.display = "none";
 }
 
 /**
@@ -229,62 +316,75 @@ async function waitForSupabaseClient() {
 }
 
 /**
- * Loads products from Supabase instead of hardcoded frontend array
+ * Loads products from Supabase. If GitHub Pages/CDN/Supabase is unavailable,
+ * the static fallback catalog keeps the site visible and usable.
  */
 async function loadProductsFromSupabase() {
     const client = await waitForSupabaseClient();
 
     if (!client) {
-        console.error("Supabase client is not initialized");
-        PRODUCTS = [];
-        return [];
+        return useFallbackProducts("Supabase client is not initialized");
     }
 
-    let data = null;
-    let error = null;
+    try {
+        let data = null;
+        let error = null;
 
-    // Preferred schema: products has description_de, category, rating and is_active.
-    const fullQuery = await client
-        .from("products")
-        .select("id, name, description, description_de, price, category, image, rating, created_at, is_active")
-        .eq("is_active", true)
-        .order("created_at", { ascending: true });
+        // Preferred schema: products has description_de, category, rating and is_active.
+        const fullQuery = await withTimeout(
+            client
+                .from("products")
+                .select("id, name, description, description_de, price, category, image, rating, created_at, is_active")
+                .eq("is_active", true)
+                .order("created_at", { ascending: true }),
+            4500,
+            "Supabase products request timed out"
+        );
 
-    if (!fullQuery.error) {
-        data = fullQuery.data;
-    } else {
-        // Fallback for the older/minimal products table:
-        // id, name, description, price, image, created_at.
-        console.warn("Full products query failed, trying minimal products schema:", fullQuery.error);
+        if (!fullQuery.error) {
+            data = fullQuery.data;
+        } else {
+            // Fallback for the older/minimal products table:
+            // id, name, description, price, image, created_at.
+            console.warn("Full products query failed, trying minimal products schema:", fullQuery.error);
 
-        const minimalQuery = await client
-            .from("products")
-            .select("id, name, description, price, image, created_at")
-            .order("created_at", { ascending: true });
+            const minimalQuery = await withTimeout(
+                client
+                    .from("products")
+                    .select("id, name, description, price, image, created_at")
+                    .order("created_at", { ascending: true }),
+                4500,
+                "Supabase minimal products request timed out"
+            );
 
-        data = minimalQuery.data;
-        error = minimalQuery.error;
+            data = minimalQuery.data;
+            error = minimalQuery.error;
+        }
+
+        if (error) {
+            return useFallbackProducts(error.message || "Could not load products from Supabase");
+        }
+
+        if (!data || data.length === 0) {
+            return useFallbackProducts("Supabase returned an empty products list");
+        }
+
+        PRODUCTS = data.map((p) => ({
+            id: String(p.id),
+            title: p.name || "Untitled product",
+            description: p.description || "",
+            description_de: p.description_de || p.description || "",
+            price: Number(p.price || 0),
+            category: p.category || "tech",
+            image: p.image || "assets/logo.svg",
+            rating: Number(p.rating || 4),
+            created_at: p.created_at
+        }));
+
+        return PRODUCTS;
+    } catch (err) {
+        return useFallbackProducts(err.message || "Unexpected Supabase error");
     }
-
-    if (error) {
-        console.error("Could not load products from Supabase:", error);
-        PRODUCTS = [];
-        return [];
-    }
-
-    PRODUCTS = (data || []).map((p) => ({
-        id: String(p.id),
-        title: p.name || "Untitled product",
-        description: p.description || "",
-        description_de: p.description_de || p.description || "",
-        price: Number(p.price || 0),
-        category: p.category || "tech",
-        image: p.image || "assets/logo.svg",
-        rating: Number(p.rating || 4),
-        created_at: p.created_at
-    }));
-
-    return PRODUCTS;
 }
 
 /**

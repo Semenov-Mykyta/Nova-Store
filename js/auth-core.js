@@ -54,6 +54,16 @@ function clearRecoveryState() {
     clearAuthCache();
 }
 
+function getPageUrl(page = "") {
+    const path = window.location.pathname;
+    const directory = path.endsWith("/")
+        ? path
+        : path.slice(0, path.lastIndexOf("/") + 1);
+
+    return new URL(page, `${window.location.origin}${directory}`).href;
+}
+
+
 function createSupabaseClient() {
     if (window.supabaseClient) return window.supabaseClient;
     if (typeof supabase === "undefined") return null;
@@ -178,7 +188,7 @@ async function requireAuth(redirectToLogin = true) {
 
     if (redirectToLogin) {
         const next = encodeURIComponent(window.location.pathname + window.location.search);
-        window.location.href = `login.html?next=${next}`;
+        window.location.href = getPageUrl(`login.html?next=${next}`);
     }
 
     return null;
@@ -232,6 +242,7 @@ window.NovaAuth = {
     requireAuth,
     clearAuthCache,
     clearRecoveryState,
+    getPageUrl,
     initAuthStateListener
 };
 

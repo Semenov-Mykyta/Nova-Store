@@ -16,6 +16,25 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (type) el.classList.add(type);
     }
 
+
+    function getSafeNextUrl() {
+        const fallback = window.NovaAuth?.getPageUrl?.("index.html") || "index.html";
+        const next = new URLSearchParams(window.location.search).get("next");
+
+        if (!next) return fallback;
+
+        try {
+            const url = new URL(next, window.location.href);
+            return url.origin === window.location.origin ? url.href : fallback;
+        } catch {
+            return fallback;
+        }
+    }
+
+    function getAuthRedirectUrl(page) {
+        return window.NovaAuth?.getPageUrl?.(page) || new URL(page, window.location.href).href;
+    }
+
     // ======================
     // LOGIN
     // ======================
@@ -47,7 +66,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 detail: { user: data.user }
             }));
 
-            window.location.href = "index.html";
+            window.location.href = getSafeNextUrl();
         });
     }
 
@@ -65,7 +84,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 email,
                 password,
                 options: {
-                    emailRedirectTo: `${window.location.origin}/login.html`
+                    emailRedirectTo: getAuthRedirectUrl("login.html")
                 }
             });
 
@@ -147,7 +166,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             try {
                 const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
-                    redirectTo: `${window.location.origin}/Nova-Store/password-reset.html`
+                    redirectTo: getAuthRedirectUrl("password-reset.html")
                 });
 
                 if (error) {
