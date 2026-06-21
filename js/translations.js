@@ -6,6 +6,7 @@ const translations = {
         "nav.orders": "My Orders",
         "nav.login": "Login",
         "nav.logged_in_as": "Logged in as",
+        "nav.logout": "Logout",
 
         "hero.title": "Premium tech & fashion, curated for you.",
         "hero.subtitle": "Discover a carefully selected collection of devices and apparel that feel like the future.",
@@ -162,7 +163,26 @@ const translations = {
         "checkout.success_title": "Order placed! 🎉",
         "checkout.success_text": "Order {orderId} was sent to {email} and the store.",
         "checkout.email_warning": "The order was created, but the notification email could not be sent.",
-        "checkout.error": "Could not create the order. Please try again."
+        "checkout.error": "Could not create the order. Please try again.",
+        "my.orders.title": "My Orders",
+        "my.orders.p": "Your recent NovaStore orders.",
+        "my.orders.loading": "Loading orders...",
+        "my.orders.empty_title": "No orders yet",
+        "my.orders.empty_text": "You have not placed any orders yet.",
+        "my.orders.go_shopping": "Go shopping",
+        "my.orders.error_title": "Error loading orders",
+        "my.orders.error_text": "Please try again later.",
+        "my.orders.unknown_date": "Unknown date",
+        "my.orders.order_prefix": "Order",
+        "my.orders.total": "Total",
+        "my.orders.no_items": "No items found for this order.",
+        "my.orders.product": "Product",
+        "my.orders.quantity": "Quantity",
+        "my.orders.status.pending": "Pending",
+        "my.orders.status.paid": "Paid",
+        "my.orders.status.shipped": "Shipped",
+        "my.orders.status.delivered": "Delivered",
+        "my.orders.status.cancelled": "Cancelled"
     },
 
     de: {
@@ -172,6 +192,7 @@ const translations = {
         "nav.orders": "Meine Bestellungen",
         "nav.login": "Login",
         "nav.logged_in_as": "Angemeldet als",
+        "nav.logout": "Abmelden",
 
         "hero.title": "Premium Tech & Fashion, kuratiert für dich.",
         "hero.subtitle": "Entdecke eine sorgfältig ausgewählte Kollektion von Geräten und Kleidung, die sich nach Zukunft anfühlt.",
@@ -311,7 +332,7 @@ const translations = {
         "dashboard.settings_desc": "Sprache, Präferenzen und mehr.",
         "dashboard.security": "Sicherheit",
         "dashboard.security_desc": "Passwort und Login‑Sicherheit.",
-        "dashboard.logout": "Logout",
+        "dashboard.logout": "Abmelden",
 
         "support.title": "Support & Kontakt",
         "support.subtitle": "Wir helfen bei Bestellungen, Rücksendungen und Produktfragen.",
@@ -328,7 +349,26 @@ const translations = {
         "checkout.success_title": "Bestellung aufgegeben! 🎉",
         "checkout.success_text": "Bestellung {orderId} wurde an {email} und den Shop gesendet.",
         "checkout.email_warning": "Die Bestellung wurde erstellt, aber die Benachrichtigungs-E-Mail konnte nicht gesendet werden.",
-        "checkout.error": "Die Bestellung konnte nicht erstellt werden. Bitte versuche es erneut."
+        "checkout.error": "Die Bestellung konnte nicht erstellt werden. Bitte versuche es erneut.",
+        "my.orders.title": "Meine Bestellungen",
+        "my.orders.p": "Deine letzten NovaStore-Bestellungen.",
+        "my.orders.loading": "Bestellungen werden geladen...",
+        "my.orders.empty_title": "Noch keine Bestellungen",
+        "my.orders.empty_text": "Du hast noch keine Bestellungen aufgegeben.",
+        "my.orders.go_shopping": "Jetzt einkaufen",
+        "my.orders.error_title": "Fehler beim Laden der Bestellungen",
+        "my.orders.error_text": "Bitte versuche es später erneut.",
+        "my.orders.unknown_date": "Unbekanntes Datum",
+        "my.orders.order_prefix": "Bestellung",
+        "my.orders.total": "Gesamt",
+        "my.orders.no_items": "Keine Artikel für diese Bestellung gefunden.",
+        "my.orders.product": "Produkt",
+        "my.orders.quantity": "Menge",
+        "my.orders.status.pending": "Ausstehend",
+        "my.orders.status.paid": "Bezahlt",
+        "my.orders.status.shipped": "Versendet",
+        "my.orders.status.delivered": "Geliefert",
+        "my.orders.status.cancelled": "Storniert"
 
     }
 };
@@ -406,9 +446,14 @@ function setLanguage(lang) {
     if (typeof initProductPage === "function" && document.querySelector(".product-layout")) {
         initProductPage();
     }
+
+    window.dispatchEvent(new CustomEvent("nova:language-changed", {
+        detail: { lang: currentLang }
+    }));
 }
 
 window.setLanguage = setLanguage;
+window.getCurrentLanguage = () => currentLang;
 
 document.addEventListener("DOMContentLoaded", () => {
     applyTranslations();

@@ -138,7 +138,7 @@ function updateProfileMenuLabels() {
     const logoutBtn = document.getElementById("nav-logout-btn");
 
     if (ordersLink) ordersLink.textContent = getTranslation("nav.orders", "My orders");
-    if (logoutBtn) logoutBtn.textContent = getTranslation("dashboard.logout", "Logout");
+    if (logoutBtn) logoutBtn.textContent = getTranslation("nav.logout", getTranslation("dashboard.logout", "Logout"));
 }
 
 async function refreshNavbarAuth(forceRefresh = false) {

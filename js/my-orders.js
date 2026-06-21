@@ -9,6 +9,43 @@ async function waitForOrdersSupabaseClient() {
     return null;
 }
 
+function getCurrentOrdersLang() {
+    const lang = window.getCurrentLanguage?.() || localStorage.getItem("lang") || "en";
+    return lang === "de" ? "de" : "en";
+}
+
+function tr(key, params = {}) {
+    if (typeof window.translate === "function") {
+        return window.translate(key, params);
+    }
+
+    const fallback = {
+        "my.orders.loading": "Loading orders...",
+        "my.orders.empty_title": "No orders yet",
+        "my.orders.empty_text": "You have not placed any orders yet.",
+        "my.orders.go_shopping": "Go shopping",
+        "my.orders.error_title": "Error loading orders",
+        "my.orders.error_text": "Please try again later.",
+        "my.orders.unknown_date": "Unknown date",
+        "my.orders.order_prefix": "Order",
+        "my.orders.total": "Total",
+        "my.orders.no_items": "No items found for this order.",
+        "my.orders.product": "Product",
+        "my.orders.quantity": "Quantity",
+        "my.orders.status.pending": "Pending",
+        "my.orders.status.paid": "Paid",
+        "my.orders.status.shipped": "Shipped",
+        "my.orders.status.delivered": "Delivered",
+        "my.orders.status.cancelled": "Cancelled"
+    };
+
+    let text = fallback[key] || key;
+    Object.entries(params).forEach(([name, value]) => {
+        text = text.replaceAll(`{${name}}`, String(value ?? ""));
+    });
+    return text;
+}
+
 function escapeHtml(value) {
     return String(value ?? "")
         .replace(/&/g, "&amp;")
@@ -23,9 +60,11 @@ function formatMoney(value) {
 }
 
 function formatDate(value) {
-    if (!value) return "Unknown date";
+    if (!value) return tr("my.orders.unknown_date");
 
-    return new Date(value).toLocaleString("en-US", {
+    const locale = getCurrentOrdersLang() === "de" ? "de-DE" : "en-US";
+
+    return new Date(value).toLocaleString(locale, {
         year: "numeric",
         month: "short",
         day: "2-digit",
@@ -39,22 +78,29 @@ function getShortOrderId(id) {
     return String(id).slice(0, 8).toUpperCase();
 }
 
-function getStatusClass(status) {
+function normalizeStatus(status) {
     const normalized = String(status || "pending").toLowerCase();
 
-    if (normalized === "paid") return "status-paid";
-    if (normalized === "shipped") return "status-shipped";
-    if (normalized === "delivered") return "status-delivered";
-    if (normalized === "cancelled") return "status-cancelled";
+    if (["paid", "shipped", "delivered", "cancelled"].includes(normalized)) {
+        return normalized;
+    }
 
-    return "status-pending";
+    return "pending";
+}
+
+function getStatusClass(status) {
+    return `status-${normalizeStatus(status)}`;
+}
+
+function getStatusLabel(status) {
+    return tr(`my.orders.status.${normalizeStatus(status)}`);
 }
 
 function renderOrderItems(items) {
     if (!items || items.length === 0) {
         return `
             <div class="order-items-empty">
-                No items found for this order.
+                ${escapeHtml(tr("my.orders.no_items"))}
             </div>
         `;
     }
@@ -62,17 +108,17 @@ function renderOrderItems(items) {
     return `
         <div class="order-items">
             ${items.map((item) => {
-        const title = escapeHtml(item.title || "Product");
-        const quantity = Number(item.quantity || 1);
-        const price = Number(item.price || 0);
-        const itemTotal = price * quantity;
+                const title = escapeHtml(item.title || tr("my.orders.product"));
+                const quantity = Number(item.quantity || 1);
+                const price = Number(item.price || 0);
+                const itemTotal = price * quantity;
 
-        return `
+                return `
                     <div class="order-item">
                         <div>
                             <div class="order-item-title">${title}</div>
                             <div class="order-item-meta">
-                                Quantity: ${quantity} × ${formatMoney(price)}
+                                ${escapeHtml(tr("my.orders.quantity"))}: ${quantity} × ${formatMoney(price)}
                             </div>
                         </div>
 
@@ -81,14 +127,13 @@ function renderOrderItems(items) {
                         </div>
                     </div>
                 `;
-    }).join("")}
+            }).join("")}
         </div>
     `;
 }
 
 function renderOrders(orders, itemsByOrderId) {
     return orders.map((order) => {
-        const status = escapeHtml(order.status || "pending");
         const statusClass = getStatusClass(order.status);
         const orderItems = itemsByOrderId[order.id] || [];
 
@@ -96,19 +141,19 @@ function renderOrders(orders, itemsByOrderId) {
             <article class="order-card">
                 <div class="order-card-header">
                     <div>
-                        <h3>Order #${getShortOrderId(order.id)}</h3>
+                        <h3>${escapeHtml(tr("my.orders.order_prefix"))} #${getShortOrderId(order.id)}</h3>
                         <p class="order-date">${formatDate(order.created_at)}</p>
                     </div>
 
                     <span class="order-status ${statusClass}">
-                        ${status}
+                        ${escapeHtml(getStatusLabel(order.status))}
                     </span>
                 </div>
 
                 ${renderOrderItems(orderItems)}
 
                 <div class="order-card-footer">
-                    <span>Total</span>
+                    <span>${escapeHtml(tr("my.orders.total"))}</span>
                     <strong>${formatMoney(order.total)}</strong>
                 </div>
             </article>
@@ -144,7 +189,7 @@ async function loadMyOrders() {
     const container = document.getElementById("orders-container");
     if (!container) return;
 
-    container.innerHTML = `<p>Loading orders...</p>`;
+    container.innerHTML = `<p>${escapeHtml(tr("my.orders.loading"))}</p>`;
 
     try {
         const client = await waitForOrdersSupabaseClient();
@@ -175,9 +220,9 @@ async function loadMyOrders() {
         if (!orders || orders.length === 0) {
             container.innerHTML = `
                 <div class="empty-state">
-                    <h3>No orders yet</h3>
-                    <p>You have not placed any orders yet.</p>
-                    <a href="shop.html" class="btn primary">Go shopping</a>
+                    <h3>${escapeHtml(tr("my.orders.empty_title"))}</h3>
+                    <p>${escapeHtml(tr("my.orders.empty_text"))}</p>
+                    <a href="shop.html" class="btn primary">${escapeHtml(tr("my.orders.go_shopping"))}</a>
                 </div>
             `;
             return;
@@ -192,11 +237,12 @@ async function loadMyOrders() {
 
         container.innerHTML = `
             <div class="checkout-error">
-                <h3>Error loading orders</h3>
-                <p>${escapeHtml(err?.message || "Please try again later.")}</p>
+                <h3>${escapeHtml(tr("my.orders.error_title"))}</h3>
+                <p>${escapeHtml(err?.message || tr("my.orders.error_text"))}</p>
             </div>
         `;
     }
 }
 
 document.addEventListener("DOMContentLoaded", loadMyOrders);
+window.addEventListener("nova:language-changed", loadMyOrders);
