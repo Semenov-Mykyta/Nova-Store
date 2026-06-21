@@ -1,433 +1,482 @@
 document.addEventListener("DOMContentLoaded", async () => {
     const SUPABASE_URL = "https://vpznvbxgklqovibmoheq.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZwem52Ynhna2xxb3ZpYm1vaGVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAxNDAyNTMsImV4cCI6MjA5NTcxNjI1M30.FgCN1knqpyi-2bb9U8tvSqC1mpGT15IyMyrM7BGJQRY";
+    
+const RECOVERY_FLAG = "novastore_password_recovery_active";
+const AUTH_CACHE_KEY = "novastore_auth_cache";
+const THEME_KEY = "novastore_theme";
+const LANG_KEY = "lang";
+const FALLBACK_LANG_KEY = "novastore_lang";
 
-    const RECOVERY_FLAG = "novastore_password_recovery_active";
-    const AUTH_CACHE_KEY = "novastore_auth_cache";
-    const THEME_KEY = "novastore_theme";
-    const LANG_KEY = "lang";
-    const FALLBACK_LANG_KEY = "novastore_lang";
+const form = document.getElementById("reset-form");
+const password = document.getElementById("password");
+const confirm = document.getElementById("confirm");
+const msg = document.getElementById("msg");
 
-    const form = document.getElementById("reset-form");
-    const password = document.getElementById("password");
-    const confirm = document.getElementById("confirm");
-    const msg = document.getElementById("msg");
+const togglePassword = document.getElementById("toggle-password");
+const toggleConfirm = document.getElementById("toggle-confirm");
+const themeToggle = document.getElementById("theme-toggle");
+const themeIcon = document.querySelector(".theme-icon");
+const langToggle = document.getElementById("lang-toggle");
+const langLabel = document.getElementById("lang-label");
+const burger = document.getElementById("burger");
+const nav = document.getElementById("nav");
 
-    const togglePassword = document.getElementById("toggle-password");
-    const toggleConfirm = document.getElementById("toggle-confirm");
-    const themeToggle = document.getElementById("theme-toggle");
-    const themeIcon = document.querySelector(".theme-icon");
-    const langToggle = document.getElementById("lang-toggle");
-    const langLabel = document.getElementById("lang-label");
-    const burger = document.getElementById("burger");
-    const nav = document.getElementById("nav");
+const resetTexts = {
+    en: {
+        navHome: "Home",
+        navShop: "Shop",
+        navSupport: "Support",
+        login: "Login",
+        kicker: "Account security",
+        heroTitle: "Set a new password.",
+        heroText: "Create a strong password for your NovaStore account. After updating it, you can sign in again and continue shopping securely.",
+        point1: "Secure recovery link",
+        point2: "Protected checkout",
+        point3: "Fresh login after reset",
+        cardTitle: "Reset Password",
+        cardText: "Enter and confirm your new password below.",
+        newPassword: "New password",
+        confirmPassword: "Confirm password",
+        submit: "Update Password",
+        backLogin: "Back to login",
+        footerTagline: "A modern e-commerce experience for tech and fashion lovers.",
+        footerLinks: "Links",
+        footerShop: "Shop",
+        footerSupport: "Support",
+        footerTerms: "Terms of Service",
+        footerPrivacy: "Privacy Policy",
+        footerContact: "Contact",
+        checking: "Checking reset link...",
+        enterPassword: "Enter your new password.",
+        confirmYourPassword: "Confirm your password.",
+        tooShort: "Password must be at least 6 characters.",
+        match: "Passwords match ✓",
+        mismatch: "Passwords do not match.",
+        updating: "Updating password...",
+        success: "Password updated successfully! Redirecting...",
+        invalid: "Invalid or expired reset link. Please request a new one.",
+        authNotReady: "Auth system not ready. Please reload the page.",
+        updateFailed: "Could not update password."
+    },
+    de: {
+        navHome: "Startseite",
+        navShop: "Shop",
+        navSupport: "Support",
+        login: "Login",
+        kicker: "Kontosicherheit",
+        heroTitle: "Neues Passwort setzen.",
+        heroText: "Erstelle ein starkes Passwort für dein NovaStore-Konto. Danach kannst du dich erneut anmelden und sicher weiter einkaufen.",
+        point1: "Sicherer Wiederherstellungslink",
+        point2: "Geschützter Checkout",
+        point3: "Neuer Login nach Reset",
+        cardTitle: "Passwort zurücksetzen",
+        cardText: "Gib dein neues Passwort ein und bestätige es.",
+        newPassword: "Neues Passwort",
+        confirmPassword: "Passwort bestätigen",
+        submit: "Passwort aktualisieren",
+        backLogin: "Zurück zum Login",
+        footerTagline: "Ein modernes E-Commerce-Erlebnis für Tech- und Fashion-Fans.",
+        footerLinks: "Links",
+        footerShop: "Shop",
+        footerSupport: "Support",
+        footerTerms: "Nutzungsbedingungen",
+        footerPrivacy: "Datenschutz",
+        footerContact: "Kontakt",
+        checking: "Reset-Link wird geprüft...",
+        enterPassword: "Gib dein neues Passwort ein.",
+        confirmYourPassword: "Bestätige dein Passwort.",
+        tooShort: "Das Passwort muss mindestens 6 Zeichen lang sein.",
+        match: "Passwörter stimmen überein ✓",
+        mismatch: "Passwörter stimmen nicht überein.",
+        updating: "Passwort wird aktualisiert...",
+        success: "Passwort erfolgreich aktualisiert! Weiterleitung...",
+        invalid: "Ungültiger oder abgelaufener Reset-Link. Bitte fordere einen neuen an.",
+        authNotReady: "Auth-System ist nicht bereit. Bitte lade die Seite neu.",
+        updateFailed: "Passwort konnte nicht aktualisiert werden."
+    }
+};
 
-    const resetTexts = {
-        en: {
-            navHome: "Home",
-            navShop: "Shop",
-            navSupport: "Support",
-            login: "Login",
-            kicker: "Account security",
-            heroTitle: "Set a new password.",
-            heroText: "Create a strong password for your NovaStore account. After updating it, you can sign in again and continue shopping securely.",
-            point1: "Secure recovery link",
-            point2: "Protected checkout",
-            point3: "Fresh login after reset",
-            cardTitle: "Reset Password",
-            cardText: "Enter and confirm your new password below.",
-            newPassword: "New password",
-            confirmPassword: "Confirm password",
-            submit: "Update Password",
-            backLogin: "Back to login",
-            checking: "Checking reset link...",
-            enterPassword: "Enter your new password.",
-            confirmYourPassword: "Confirm your password.",
-            tooShort: "Password must be at least 6 characters.",
-            match: "Passwords match ✓",
-            mismatch: "Passwords do not match.",
-            updating: "Updating password...",
-            success: "Password updated successfully! Redirecting...",
-            invalid: "Invalid or expired reset link. Please request a new one.",
-            authNotReady: "Auth system not ready. Please reload the page.",
-            updateFailed: "Could not update password."
-        },
-        de: {
-            navHome: "Startseite",
-            navShop: "Shop",
-            navSupport: "Support",
-            login: "Login",
-            kicker: "Kontosicherheit",
-            heroTitle: "Neues Passwort setzen.",
-            heroText: "Erstelle ein starkes Passwort für dein NovaStore-Konto. Danach kannst du dich erneut anmelden und sicher weiter einkaufen.",
-            point1: "Sicherer Wiederherstellungslink",
-            point2: "Geschützter Checkout",
-            point3: "Neuer Login nach Reset",
-            cardTitle: "Passwort zurücksetzen",
-            cardText: "Gib dein neues Passwort ein und bestätige es.",
-            newPassword: "Neues Passwort",
-            confirmPassword: "Passwort bestätigen",
-            submit: "Passwort aktualisieren",
-            backLogin: "Zurück zum Login",
-            checking: "Reset-Link wird geprüft...",
-            enterPassword: "Gib dein neues Passwort ein.",
-            confirmYourPassword: "Bestätige dein Passwort.",
-            tooShort: "Das Passwort muss mindestens 6 Zeichen lang sein.",
-            match: "Passwörter stimmen überein ✓",
-            mismatch: "Passwörter stimmen nicht überein.",
-            updating: "Passwort wird aktualisiert...",
-            success: "Passwort erfolgreich aktualisiert! Weiterleitung...",
-            invalid: "Ungültiger oder abgelaufener Reset-Link. Bitte fordere einen neuen an.",
-            authNotReady: "Auth-System ist nicht bereit. Bitte lade die Seite neu.",
-            updateFailed: "Passwort konnte nicht aktualisiert werden."
-        }
-    };
+let currentLang =
+    localStorage.getItem(LANG_KEY) ||
+    localStorage.getItem(FALLBACK_LANG_KEY) ||
+    "en";
 
-    let currentLang =
-        localStorage.getItem(LANG_KEY) ||
-        localStorage.getItem(FALLBACK_LANG_KEY) ||
-        "en";
+if (!["en", "de"].includes(currentLang)) {
+    currentLang = "en";
+}
 
-    if (!["en", "de"].includes(currentLang)) {
-        currentLang = "en";
+let recoverySession = null;
+
+function t(key) {
+    return resetTexts[currentLang]?.[key] || resetTexts.en[key] || key;
+}
+
+function cleanPasswordValue(value) {
+    return String(value || "")
+        .normalize("NFKC")
+        .replace(/[\u200B-\u200D\uFEFF]/g, "")
+        .trim();
+}
+
+function setStatus(message, type = "") {
+    if (!msg) return;
+
+    msg.textContent = message;
+    msg.className = "reset-status";
+
+    if (type) {
+        msg.classList.add(type);
+    }
+}
+
+function setFormDisabled(disabled) {
+    if (password) password.disabled = disabled;
+    if (confirm) confirm.disabled = disabled;
+
+    const submitBtn = form?.querySelector("button[type='submit']");
+    if (submitBtn) {
+        submitBtn.disabled = disabled;
+    }
+}
+
+function applyResetLanguage() {
+    document.querySelectorAll("[data-reset-i18n]").forEach((el) => {
+        const key = el.getAttribute("data-reset-i18n");
+        el.textContent = t(key);
+    });
+
+    if (langLabel) {
+        langLabel.textContent = currentLang.toUpperCase();
     }
 
-    function t(key) {
-        return resetTexts[currentLang]?.[key] || resetTexts.en[key] || key;
+    if (password) {
+        password.placeholder = currentLang === "de"
+            ? "Neues Passwort eingeben"
+            : "Enter new password";
     }
 
-    function cleanPasswordValue(value) {
-        return String(value || "")
-            .normalize("NFKC")
-            .replace(/[\u200B-\u200D\uFEFF]/g, "")
-            .trim();
+    if (confirm) {
+        confirm.placeholder = currentLang === "de"
+            ? "Passwort wiederholen"
+            : "Repeat new password";
     }
+}
 
-    function setStatus(message, type = "") {
-        if (!msg) return;
+function applyTheme(theme) {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem(THEME_KEY, theme);
 
-        msg.textContent = message;
-        msg.className = "reset-status";
-
-        if (type) {
-            msg.classList.add(type);
-        }
+    if (themeIcon) {
+        themeIcon.textContent = theme === "dark" ? "🌙" : "☀️";
     }
+}
 
-    function setFormDisabled(disabled) {
-        if (password) password.disabled = disabled;
-        if (confirm) confirm.disabled = disabled;
+function initThemeControls() {
+    const currentTheme = document.documentElement.getAttribute("data-theme") || "dark";
+    applyTheme(currentTheme);
 
-        const submitBtn = form?.querySelector("button[type='submit']");
-        if (submitBtn) {
-            submitBtn.disabled = disabled;
-        }
-    }
+    themeToggle?.addEventListener("click", () => {
+        const activeTheme = document.documentElement.getAttribute("data-theme") || "dark";
+        applyTheme(activeTheme === "dark" ? "light" : "dark");
+    });
+}
 
-    function applyResetLanguage() {
-        document.querySelectorAll("[data-reset-i18n]").forEach((el) => {
-            const key = el.getAttribute("data-reset-i18n");
-            el.textContent = t(key);
-        });
+function initLanguageControls() {
+    applyResetLanguage();
 
-        if (langLabel) {
-            langLabel.textContent = currentLang.toUpperCase();
-        }
+    langToggle?.addEventListener("click", () => {
+        currentLang = currentLang === "en" ? "de" : "en";
 
-        if (password) {
-            password.placeholder = currentLang === "de"
-                ? "Neues Passwort eingeben"
-                : "Enter new password";
-        }
+        localStorage.setItem(LANG_KEY, currentLang);
+        localStorage.setItem(FALLBACK_LANG_KEY, currentLang);
 
-        if (confirm) {
-            confirm.placeholder = currentLang === "de"
-                ? "Passwort wiederholen"
-                : "Repeat new password";
-        }
-    }
-
-    function applyTheme(theme) {
-        document.documentElement.setAttribute("data-theme", theme);
-        localStorage.setItem(THEME_KEY, theme);
-
-        if (themeIcon) {
-            themeIcon.textContent = theme === "dark" ? "🌙" : "☀️";
-        }
-    }
-
-    function initThemeControls() {
-        const currentTheme = document.documentElement.getAttribute("data-theme") || "dark";
-        applyTheme(currentTheme);
-
-        themeToggle?.addEventListener("click", () => {
-            const activeTheme = document.documentElement.getAttribute("data-theme") || "dark";
-            applyTheme(activeTheme === "dark" ? "light" : "dark");
-        });
-    }
-
-    function initLanguageControls() {
         applyResetLanguage();
+        validateMatch();
+    });
+}
 
-        langToggle?.addEventListener("click", () => {
-            currentLang = currentLang === "en" ? "de" : "en";
+function initBurger() {
+    burger?.addEventListener("click", () => {
+        nav?.classList.toggle("open");
+        burger.classList.toggle("open");
+    });
+}
 
-            localStorage.setItem(LANG_KEY, currentLang);
-            localStorage.setItem(FALLBACK_LANG_KEY, currentLang);
+function setupPasswordToggle(toggle, input) {
+    if (!toggle || !input) return;
 
-            applyResetLanguage();
-            validateMatch();
-        });
-    }
+    toggle.addEventListener("click", () => {
+        const hidden = input.type === "password";
 
-    function initBurger() {
-        burger?.addEventListener("click", () => {
-            nav?.classList.toggle("open");
-            burger.classList.toggle("open");
-        });
-    }
+        input.type = hidden ? "text" : "password";
+        toggle.textContent = hidden ? "🙈" : "👁";
+        toggle.setAttribute("aria-label", hidden ? "Hide password" : "Show password");
+    });
+}
 
-    function setupPasswordToggle(toggle, input) {
-        if (!toggle || !input) return;
+function getRecoveryParams() {
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const queryParams = new URLSearchParams(window.location.search);
 
-        toggle.addEventListener("click", () => {
-            const hidden = input.type === "password";
+    return {
+        code: queryParams.get("code"),
+        hashType: hashParams.get("type"),
+        queryType: queryParams.get("type"),
+        accessToken: hashParams.get("access_token"),
+        refreshToken: hashParams.get("refresh_token"),
+        error: queryParams.get("error") || hashParams.get("error"),
+        errorDescription:
+            queryParams.get("error_description") ||
+            hashParams.get("error_description")
+    };
+}
 
-            input.type = hidden ? "text" : "password";
-            toggle.textContent = hidden ? "🙈" : "👁";
-            toggle.setAttribute("aria-label", hidden ? "Hide password" : "Show password");
-        });
-    }
+function markRecoveryState() {
+    localStorage.setItem(RECOVERY_FLAG, "1");
+    sessionStorage.setItem(RECOVERY_FLAG, "1");
+    sessionStorage.removeItem(AUTH_CACHE_KEY);
+}
 
-    function getRecoveryParams() {
-        const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
-        const queryParams = new URLSearchParams(window.location.search);
+function clearRecoveryState() {
+    localStorage.removeItem(RECOVERY_FLAG);
+    sessionStorage.removeItem(RECOVERY_FLAG);
+    sessionStorage.removeItem(AUTH_CACHE_KEY);
+    localStorage.removeItem("sb-password-recovery-auth-token");
+}
 
-        return {
-            code: queryParams.get("code"),
-            hashType: hashParams.get("type"),
-            queryType: queryParams.get("type"),
-            accessToken: hashParams.get("access_token"),
-            refreshToken: hashParams.get("refresh_token"),
-            error: queryParams.get("error") || hashParams.get("error"),
-            errorDescription:
-                queryParams.get("error_description") ||
-                hashParams.get("error_description")
-        };
-    }
+function cleanUrlAfterSessionCreated() {
+    window.history.replaceState({}, document.title, window.location.pathname);
+}
 
-    function markRecoveryState() {
-        localStorage.setItem(RECOVERY_FLAG, "1");
-        sessionStorage.setItem(RECOVERY_FLAG, "1");
-        sessionStorage.removeItem(AUTH_CACHE_KEY);
-    }
-
-    function clearRecoveryState() {
-        localStorage.removeItem(RECOVERY_FLAG);
-        sessionStorage.removeItem(RECOVERY_FLAG);
-        sessionStorage.removeItem(AUTH_CACHE_KEY);
-    }
-
-    function cleanUrlAfterSessionCreated() {
-        window.history.replaceState({}, document.title, window.location.pathname);
-    }
-
-    function createResetSupabaseClient() {
-        if (typeof supabase === "undefined") {
-            return null;
-        }
-
-        return supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-            auth: {
-                persistSession: true,
-                autoRefreshToken: true,
-                detectSessionInUrl: false
-            }
-        });
-    }
-
-    async function prepareRecoverySession(supabaseClient) {
-        const params = getRecoveryParams();
-
-        if (params.error) {
-            console.error("Recovery link error:", params.error, params.errorDescription);
-            return null;
-        }
-
-        const looksLikeRecovery =
-            params.hashType === "recovery" ||
-            params.queryType === "recovery" ||
-            Boolean(params.code) ||
-            Boolean(params.accessToken);
-
-        if (looksLikeRecovery) {
-            markRecoveryState();
-        }
-
-        if (params.code) {
-            const { data, error } = await supabaseClient.auth.exchangeCodeForSession(params.code);
-
-            if (error) {
-                console.error("Recovery code exchange failed:", error);
-                return null;
-            }
-
-            if (data?.session) {
-                cleanUrlAfterSessionCreated();
-                return data.session;
-            }
-        }
-
-        if (params.accessToken && params.refreshToken) {
-            const { data, error } = await supabaseClient.auth.setSession({
-                access_token: params.accessToken,
-                refresh_token: params.refreshToken
-            });
-
-            if (error) {
-                console.error("Recovery token session failed:", error);
-                return null;
-            }
-
-            if (data?.session) {
-                cleanUrlAfterSessionCreated();
-                return data.session;
-            }
-        }
-
-        for (let i = 0; i < 60; i++) {
-            const { data } = await supabaseClient.auth.getSession();
-
-            if (data?.session) {
-                return data.session;
-            }
-
-            await new Promise((resolve) => setTimeout(resolve, 100));
-        }
-
+function createResetSupabaseClient() {
+    if (typeof supabase === "undefined") {
         return null;
     }
 
-    function validateMatch() {
-        if (!password || !confirm) return false;
-
-        const pass = cleanPasswordValue(password.value);
-        const conf = cleanPasswordValue(confirm.value);
-
-        if (!pass && !conf) {
-            setStatus(t("enterPassword"));
-            return false;
+    return supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        auth: {
+            persistSession: true,
+            autoRefreshToken: true,
+            detectSessionInUrl: false,
+            storageKey: "sb-password-recovery-auth-token"
         }
+    });
+}
 
-        if (pass.length > 0 && pass.length < 6) {
-            setStatus(t("tooShort"), "error");
-            return false;
-        }
+async function prepareRecoverySession(supabaseClient) {
+    const params = getRecoveryParams();
 
-        if (!conf) {
-            setStatus(t("confirmYourPassword"));
-            return false;
-        }
-
-        if (pass === conf) {
-            setStatus(t("match"), "success");
-            return true;
-        }
-
-        setStatus(t("mismatch"), "error");
-        return false;
+    if (params.error) {
+        console.error("Recovery link error:", params.error, params.errorDescription);
+        return null;
     }
 
-    initThemeControls();
-    initLanguageControls();
-    initBurger();
+    const looksLikeRecovery =
+        params.hashType === "recovery" ||
+        params.queryType === "recovery" ||
+        Boolean(params.code) ||
+        Boolean(params.accessToken);
 
-    if (!form || !password || !confirm || !msg) {
-        console.error("Password reset page elements are missing.");
-        return;
+    if (looksLikeRecovery) {
+        markRecoveryState();
     }
 
-    password.setAttribute("autocomplete", "new-password");
-    confirm.setAttribute("autocomplete", "new-password");
+    if (params.code) {
+        const { data, error } = await supabaseClient.auth.exchangeCodeForSession(params.code);
 
-    setupPasswordToggle(togglePassword, password);
-    setupPasswordToggle(toggleConfirm, confirm);
+        if (error) {
+            console.error("Recovery code exchange failed:", error);
+            return null;
+        }
 
-    const supabaseClient = createResetSupabaseClient();
-
-    if (!supabaseClient) {
-        setStatus(t("authNotReady"), "error");
-        setFormDisabled(true);
-        return;
+        if (data?.session) {
+            recoverySession = data.session;
+            cleanUrlAfterSessionCreated();
+            return data.session;
+        }
     }
 
-    setStatus(t("checking"));
-
-    const session = await prepareRecoverySession(supabaseClient);
-
-    if (!session) {
-        setStatus(t("invalid"), "error");
-        setFormDisabled(true);
-        return;
-    }
-
-    setStatus(t("enterPassword"));
-
-    password.addEventListener("input", validateMatch);
-    confirm.addEventListener("input", validateMatch);
-
-    form.addEventListener("submit", async (e) => {
-        e.preventDefault();
-
-        const pass = cleanPasswordValue(password.value);
-        const conf = cleanPasswordValue(confirm.value);
-
-        if (pass.length < 6) {
-            setStatus(t("tooShort"), "error");
-            return;
-        }
-
-        if (pass !== conf) {
-            setStatus(t("mismatch"), "error");
-            return;
-        }
-
-        const { data: sessionData } = await supabaseClient.auth.getSession();
-
-        if (!sessionData?.session) {
-            setStatus(t("invalid"), "error");
-            setFormDisabled(true);
-            return;
-        }
-
-        setFormDisabled(true);
-        setStatus(t("updating"));
-
-        const { error } = await supabaseClient.auth.updateUser({
-            password: pass
+    if (params.accessToken && params.refreshToken) {
+        const { data, error } = await supabaseClient.auth.setSession({
+            access_token: params.accessToken,
+            refresh_token: params.refreshToken
         });
 
         if (error) {
-            console.error("Password update error:", error);
-            setStatus(error.message || t("updateFailed"), "error");
-            setFormDisabled(false);
-            return;
+            console.error("Recovery token session failed:", error);
+            return null;
         }
 
-        setStatus(t("success"), "success");
+        if (data?.session) {
+            recoverySession = data.session;
+            cleanUrlAfterSessionCreated();
+            return data.session;
+        }
+    }
 
-        clearRecoveryState();
+    for (let i = 0; i < 60; i++) {
+        const { data } = await supabaseClient.auth.getSession();
 
-        try {
-            await supabaseClient.auth.signOut();
-        } catch (error) {
-            console.warn("Could not sign out after password reset:", error);
+        if (data?.session) {
+            recoverySession = data.session;
+            return data.session;
         }
 
-        setTimeout(() => {
-            window.location.href = "login.html";
-        }, 1400);
+        await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+
+    return null;
+}
+
+async function restoreRecoverySessionIfNeeded(supabaseClient) {
+    let { data: sessionData } = await supabaseClient.auth.getSession();
+
+    if (sessionData?.session) {
+        recoverySession = sessionData.session;
+        return sessionData.session;
+    }
+
+    if (recoverySession?.access_token && recoverySession?.refresh_token) {
+        const { data, error } = await supabaseClient.auth.setSession({
+            access_token: recoverySession.access_token,
+            refresh_token: recoverySession.refresh_token
+        });
+
+        if (error) {
+            console.error("Could not restore recovery session:", error);
+            return null;
+        }
+
+        if (data?.session) {
+            recoverySession = data.session;
+            return data.session;
+        }
+    }
+
+    return null;
+}
+
+function validateMatch() {
+    if (!password || !confirm) return false;
+
+    const pass = cleanPasswordValue(password.value);
+    const conf = cleanPasswordValue(confirm.value);
+
+    if (!pass && !conf) {
+        setStatus(t("enterPassword"));
+        return false;
+    }
+
+    if (pass.length > 0 && pass.length < 6) {
+        setStatus(t("tooShort"), "error");
+        return false;
+    }
+
+    if (!conf) {
+        setStatus(t("confirmYourPassword"));
+        return false;
+    }
+
+    if (pass === conf) {
+        setStatus(t("match"), "success");
+        return true;
+    }
+
+    setStatus(t("mismatch"), "error");
+    return false;
+}
+
+initThemeControls();
+initLanguageControls();
+initBurger();
+
+if (!form || !password || !confirm || !msg) {
+    console.error("Password reset page elements are missing.");
+    return;
+}
+
+password.setAttribute("autocomplete", "new-password");
+confirm.setAttribute("autocomplete", "new-password");
+
+setupPasswordToggle(togglePassword, password);
+setupPasswordToggle(toggleConfirm, confirm);
+
+const supabaseClient = createResetSupabaseClient();
+
+if (!supabaseClient) {
+    setStatus(t("authNotReady"), "error");
+    setFormDisabled(true);
+    return;
+}
+
+setStatus(t("checking"));
+
+recoverySession = await prepareRecoverySession(supabaseClient);
+
+if (!recoverySession) {
+    setStatus(t("invalid"), "error");
+    setFormDisabled(true);
+    return;
+}
+
+setStatus(t("enterPassword"));
+
+password.addEventListener("input", validateMatch);
+confirm.addEventListener("input", validateMatch);
+
+form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const pass = cleanPasswordValue(password.value);
+    const conf = cleanPasswordValue(confirm.value);
+
+    if (pass.length < 6) {
+        setStatus(t("tooShort"), "error");
+        return;
+    }
+
+    if (pass !== conf) {
+        setStatus(t("mismatch"), "error");
+        return;
+    }
+
+    setFormDisabled(true);
+    setStatus(t("updating"));
+
+    const activeSession = await restoreRecoverySessionIfNeeded(supabaseClient);
+
+    if (!activeSession) {
+        setStatus(t("invalid"), "error");
+        setFormDisabled(false);
+        return;
+    }
+
+    const { error } = await supabaseClient.auth.updateUser({
+        password: pass
     });
+
+    if (error) {
+        console.error("Password update error:", error);
+        setStatus(error.message || t("updateFailed"), "error");
+        setFormDisabled(false);
+        return;
+    }
+
+    setStatus(t("success"), "success");
+
+    clearRecoveryState();
+
+    try {
+        await supabaseClient.auth.signOut();
+    } catch (error) {
+        console.warn("Could not sign out after password reset:", error);
+    }
+
+    setTimeout(() => {
+        window.location.href = "login.html";
+    }, 1400);
+});
 
 
 });
