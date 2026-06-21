@@ -3,8 +3,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const AUTH_CACHE_KEY = "novastore_auth_cache";
     const THEME_KEY = "novastore_theme";
     const LANG_KEY = "lang";
-
-
+    const FALLBACK_LANG_KEY = "novastore_lang";
 const form = document.getElementById("reset-form");
 const password = document.getElementById("password");
 const confirm = document.getElementById("confirm");
@@ -80,7 +79,11 @@ const resetTexts = {
     }
 };
 
-let currentLang = localStorage.getItem(LANG_KEY) || "en";
+let currentLang =
+    localStorage.getItem(LANG_KEY) ||
+    localStorage.getItem(FALLBACK_LANG_KEY) ||
+    "en";
+
 if (!["en", "de"].includes(currentLang)) {
     currentLang = "en";
 }
@@ -94,21 +97,6 @@ function cleanPasswordValue(value) {
         .normalize("NFKC")
         .replace(/[\u200B-\u200D\uFEFF]/g, "")
         .trim();
-}
-
-function debugPasswordMismatch(pass, conf) {
-    console.log("PASSWORD VALUE:", JSON.stringify(pass));
-    console.log("CONFIRM VALUE:", JSON.stringify(conf));
-
-    console.log(
-        "PASSWORD CHARS:",
-        [...pass].map((ch) => `${ch}:${ch.charCodeAt(0)}`)
-    );
-
-    console.log(
-        "CONFIRM CHARS:",
-        [...conf].map((ch) => `${ch}:${ch.charCodeAt(0)}`)
-    );
 }
 
 function setStatus(message, type = "") {
@@ -179,7 +167,9 @@ function initLanguageControls() {
 
     langToggle?.addEventListener("click", () => {
         currentLang = currentLang === "en" ? "de" : "en";
+
         localStorage.setItem(LANG_KEY, currentLang);
+        localStorage.setItem(FALLBACK_LANG_KEY, currentLang);
 
         applyResetLanguage();
         validateMatch();
@@ -205,8 +195,50 @@ function setupPasswordToggle(toggle, input) {
     });
 }
 
+function getRecoveryParams() {
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const queryParams = new URLSearchParams(window.location.search);
+
+    return {
+        code: queryParams.get("code"),
+        hashType: hashParams.get("type"),
+        queryType: queryParams.get("type"),
+        accessToken: hashParams.get("access_token"),
+        refreshToken: hashParams.get("refresh_token"),
+        error: queryParams.get("error") || hashParams.get("error"),
+        errorDescription:
+            queryParams.get("error_description") ||
+            hashParams.get("error_description")
+    };
+}
+
+function markRecoveryState() {
+    localStorage.setItem(RECOVERY_FLAG, "1");
+    sessionStorage.setItem(RECOVERY_FLAG, "1");
+    sessionStorage.removeItem(AUTH_CACHE_KEY);
+}
+
+function clearRecoveryState() {
+    localStorage.removeItem(RECOVERY_FLAG);
+    sessionStorage.removeItem(RECOVERY_FLAG);
+    sessionStorage.removeItem(AUTH_CACHE_KEY);
+
+    window.NovaAuth?.clearRecoveryState?.();
+    window.NovaAuth?.clearAuthCache?.();
+}
+
+function cleanUrlAfterSessionCreated() {
+    const cleanUrl = new URL(window.location.href);
+    cleanUrl.searchParams.delete("code");
+    cleanUrl.searchParams.delete("type");
+    cleanUrl.searchParams.delete("error");
+    cleanUrl.searchParams.delete("error_description");
+
+    window.history.replaceState({}, document.title, cleanUrl.pathname);
+}
+
 async function waitForSupabaseClient() {
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < 60; i++) {
         const client = window.NovaAuth?.createSupabaseClient?.();
 
         if (client) {
@@ -219,8 +251,56 @@ async function waitForSupabaseClient() {
     return null;
 }
 
-async function waitForRecoverySession(supabase) {
-    for (let i = 0; i < 40; i++) {
+async function prepareRecoverySession(supabase) {
+    const params = getRecoveryParams();
+
+    if (params.error) {
+        console.error("Recovery link error:", params.error, params.errorDescription);
+        return null;
+    }
+
+    const looksLikeRecovery =
+        params.hashType === "recovery" ||
+        params.queryType === "recovery" ||
+        Boolean(params.code) ||
+        Boolean(params.accessToken);
+
+    if (looksLikeRecovery) {
+        markRecoveryState();
+    }
+
+    if (params.code) {
+        const { data, error } = await supabase.auth.exchangeCodeForSession(params.code);
+
+        if (error) {
+            console.error("Recovery code exchange failed:", error);
+            return null;
+        }
+
+        if (data?.session) {
+            cleanUrlAfterSessionCreated();
+            return data.session;
+        }
+    }
+
+    if (params.accessToken && params.refreshToken) {
+        const { data, error } = await supabase.auth.setSession({
+            access_token: params.accessToken,
+            refresh_token: params.refreshToken
+        });
+
+        if (error) {
+            console.error("Recovery token session failed:", error);
+            return null;
+        }
+
+        if (data?.session) {
+            cleanUrlAfterSessionCreated();
+            return data.session;
+        }
+    }
+
+    for (let i = 0; i < 60; i++) {
         const { data } = await supabase.auth.getSession();
 
         if (data?.session) {
@@ -231,31 +311,6 @@ async function waitForRecoverySession(supabase) {
     }
 
     return null;
-}
-
-function clearRecoveryState() {
-    localStorage.removeItem(RECOVERY_FLAG);
-    sessionStorage.removeItem(RECOVERY_FLAG);
-    sessionStorage.removeItem(AUTH_CACHE_KEY);
-
-    window.NovaAuth?.clearRecoveryState?.();
-    window.NovaAuth?.clearAuthCache?.();
-}
-
-function markRecoveryStateIfNeeded() {
-    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
-    const queryParams = new URLSearchParams(window.location.search);
-
-    const isRecovery =
-        hashParams.get("type") === "recovery" ||
-        queryParams.get("type") === "recovery" ||
-        window.location.hash.includes("access_token=");
-
-    if (isRecovery) {
-        localStorage.setItem(RECOVERY_FLAG, "1");
-        sessionStorage.setItem(RECOVERY_FLAG, "1");
-        sessionStorage.removeItem(AUTH_CACHE_KEY);
-    }
 }
 
 function validateMatch() {
@@ -284,7 +339,6 @@ function validateMatch() {
         return true;
     }
 
-    debugPasswordMismatch(pass, conf);
     setStatus(t("mismatch"), "error");
     return false;
 }
@@ -304,8 +358,6 @@ confirm.setAttribute("autocomplete", "new-password");
 setupPasswordToggle(togglePassword, password);
 setupPasswordToggle(toggleConfirm, confirm);
 
-markRecoveryStateIfNeeded();
-
 const supabase = await waitForSupabaseClient();
 
 if (!supabase) {
@@ -316,7 +368,7 @@ if (!supabase) {
 
 setStatus(t("checking"));
 
-const session = await waitForRecoverySession(supabase);
+const session = await prepareRecoverySession(supabase);
 
 if (!session) {
     setStatus(t("invalid"), "error");
@@ -341,7 +393,6 @@ form.addEventListener("submit", async (e) => {
     }
 
     if (pass !== conf) {
-        debugPasswordMismatch(pass, conf);
         setStatus(t("mismatch"), "error");
         return;
     }
@@ -363,7 +414,12 @@ form.addEventListener("submit", async (e) => {
     setStatus(t("success"), "success");
 
     clearRecoveryState();
-    await supabase.auth.signOut();
+
+    try {
+        await supabase.auth.signOut();
+    } catch (error) {
+        console.warn("Could not sign out after password reset:", error);
+    }
 
     setTimeout(() => {
         window.location.href = "login.html";
