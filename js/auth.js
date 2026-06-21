@@ -23,9 +23,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     function setStatus(el, message, type = "") {
         if (!el) return;
+
         el.textContent = message;
         el.className = "auth-status";
-        if (type) el.classList.add(type);
+
+        if (type) {
+            el.classList.add(type);
+        }
     }
 
     function getPageUrl(page) {
@@ -50,6 +54,30 @@ document.addEventListener("DOMContentLoaded", async () => {
         return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
     }
 
+    function isAlreadyRegisteredError(error) {
+        const message = String(error?.message || "").toLowerCase();
+
+        return (
+            message.includes("already registered") ||
+            message.includes("already exists") ||
+            message.includes("user already") ||
+            message.includes("email already")
+        );
+    }
+
+    function isAlreadyRegisteredSignUpResponse(data) {
+        const identities = data?.user?.identities;
+        return Array.isArray(identities) && identities.length === 0;
+    }
+
+    function showAlreadyRegisteredStatus() {
+        setStatus(
+            registerStatus,
+            "This email is already registered. Please log in instead.",
+            "error"
+        );
+    }
+
     function setButtonLoading(button, isLoading, loadingText = "Loading...") {
         if (!button) return;
 
@@ -61,6 +89,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         button.disabled = false;
+
         if (button.dataset.originalText) {
             button.textContent = button.dataset.originalText;
             delete button.dataset.originalText;
@@ -105,10 +134,16 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         if (user?.email) {
             dashboard.hidden = false;
-            if (dashboardEmail) dashboardEmail.textContent = user.email;
+
+            if (dashboardEmail) {
+                dashboardEmail.textContent = user.email;
+            }
         } else {
             dashboard.hidden = true;
-            if (dashboardEmail) dashboardEmail.textContent = "";
+
+            if (dashboardEmail) {
+                dashboardEmail.textContent = "";
+            }
         }
     }
 
@@ -122,9 +157,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     await refreshDashboard();
 
-    // ======================
-    // LOGIN
-    // ======================
     if (loginForm) {
         loginForm.addEventListener("submit", async (e) => {
             e.preventDefault();
@@ -181,9 +213,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-    // ======================
-    // REGISTER
-    // ======================
     if (registerForm) {
         registerForm.addEventListener("submit", async (e) => {
             e.preventDefault();
@@ -219,14 +248,27 @@ document.addEventListener("DOMContentLoaded", async () => {
                 });
 
                 if (error) {
+                    if (isAlreadyRegisteredError(error)) {
+                        showAlreadyRegisteredStatus();
+                        return;
+                    }
+
                     setStatus(registerStatus, error.message, "error");
+                    return;
+                }
+
+                if (isAlreadyRegisteredSignUpResponse(data)) {
+                    showAlreadyRegisteredStatus();
                     return;
                 }
 
                 if (data?.session?.user) {
                     sessionStorage.setItem("novastore_auth_cache", JSON.stringify({
                         createdAt: Date.now(),
-                        user: { id: data.session.user.id, email: data.session.user.email }
+                        user: {
+                            id: data.session.user.id,
+                            email: data.session.user.email
+                        }
                     }));
 
                     window.dispatchEvent(new CustomEvent("nova:auth-changed", {
@@ -249,9 +291,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-    // ======================
-    // FORGOT PASSWORD
-    // ======================
     function startButtonCooldown(button, seconds, originalText) {
         let remaining = seconds;
 
@@ -336,9 +375,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-    // ======================
-    // LOGOUT
-    // ======================
     if (logoutBtn) {
         logoutBtn.addEventListener("click", async () => {
             try {
@@ -349,9 +385,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                 await supabaseClient.auth.signOut();
             } finally {
                 window.NovaAuth?.clearAuthCache?.();
+
                 window.dispatchEvent(new CustomEvent("nova:auth-changed", {
                     detail: { user: null }
                 }));
+
                 window.location.href = getPageUrl("login.html");
             }
         });
