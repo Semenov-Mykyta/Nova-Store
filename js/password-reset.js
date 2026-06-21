@@ -1,4 +1,9 @@
 document.addEventListener("DOMContentLoaded", async () => {
+    const RECOVERY_FLAG = "novastore_password_recovery_active";
+    const AUTH_CACHE_KEY = "novastore_auth_cache";
+    const THEME_KEY = "novastore_theme";
+    const LANG_KEY = "novastore_lang";
+
     const form = document.getElementById("reset-form");
     const password = document.getElementById("password");
     const confirm = document.getElementById("confirm");
@@ -6,6 +11,103 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const togglePassword = document.getElementById("toggle-password");
     const toggleConfirm = document.getElementById("toggle-confirm");
+    const themeToggle = document.getElementById("theme-toggle");
+    const themeIcon = document.querySelector(".theme-icon");
+    const langToggle = document.getElementById("lang-toggle");
+    const langLabel = document.getElementById("lang-label");
+    const burger = document.getElementById("burger");
+    const nav = document.getElementById("nav");
+
+    const resetTexts = {
+        en: {
+            navHome: "Home",
+            navShop: "Shop",
+            navSupport: "Support",
+            login: "Login",
+            kicker: "Account security",
+            heroTitle: "Set a new password.",
+            heroText: "Create a strong password for your NovaStore account. After updating it, you can sign in again and continue shopping securely.",
+            point1: "Secure recovery link",
+            point2: "Protected checkout",
+            point3: "Fresh login after reset",
+            cardTitle: "Reset Password",
+            cardText: "Enter and confirm your new password below.",
+            newPassword: "New password",
+            confirmPassword: "Confirm password",
+            submit: "Update Password",
+            backLogin: "Back to login",
+            checking: "Checking reset link...",
+            enterPassword: "Enter your new password.",
+            confirmYourPassword: "Confirm your password.",
+            tooShort: "Password must be at least 6 characters.",
+            match: "Passwords match ✓",
+            mismatch: "Passwords do not match.",
+            updating: "Updating password...",
+            success: "Password updated successfully! Redirecting...",
+            invalid: "Invalid or expired reset link. Please request a new one.",
+            authNotReady: "Auth system not ready. Please reload the page.",
+            updateFailed: "Could not update password."
+        },
+        de: {
+            navHome: "Startseite",
+            navShop: "Shop",
+            navSupport: "Support",
+            login: "Login",
+            kicker: "Kontosicherheit",
+            heroTitle: "Neues Passwort setzen.",
+            heroText: "Erstelle ein starkes Passwort für dein NovaStore-Konto. Danach kannst du dich erneut anmelden und sicher weiter einkaufen.",
+            point1: "Sicherer Wiederherstellungslink",
+            point2: "Geschützter Checkout",
+            point3: "Neuer Login nach Reset",
+            cardTitle: "Passwort zurücksetzen",
+            cardText: "Gib dein neues Passwort ein und bestätige es.",
+            newPassword: "Neues Passwort",
+            confirmPassword: "Passwort bestätigen",
+            submit: "Passwort aktualisieren",
+            backLogin: "Zurück zum Login",
+            checking: "Reset-Link wird geprüft...",
+            enterPassword: "Gib dein neues Passwort ein.",
+            confirmYourPassword: "Bestätige dein Passwort.",
+            tooShort: "Das Passwort muss mindestens 6 Zeichen lang sein.",
+            match: "Passwörter stimmen überein ✓",
+            mismatch: "Passwörter stimmen nicht überein.",
+            updating: "Passwort wird aktualisiert...",
+            success: "Passwort erfolgreich aktualisiert! Weiterleitung...",
+            invalid: "Ungültiger oder abgelaufener Reset-Link. Bitte fordere einen neuen an.",
+            authNotReady: "Auth-System ist nicht bereit. Bitte lade die Seite neu.",
+            updateFailed: "Passwort konnte nicht aktualisiert werden."
+        }
+    };
+
+    let currentLang = localStorage.getItem(LANG_KEY) || "en";
+    if (!["en", "de"].includes(currentLang)) currentLang = "en";
+
+    function t(key) {
+        return resetTexts[currentLang]?.[key] || resetTexts.en[key] || key;
+    }
+
+    function applyResetLanguage() {
+        document.querySelectorAll("[data-reset-i18n]").forEach((el) => {
+            const key = el.getAttribute("data-reset-i18n");
+            el.textContent = t(key);
+        });
+
+        if (langLabel) {
+            langLabel.textContent = currentLang.toUpperCase();
+        }
+
+        if (password) {
+            password.placeholder = currentLang === "de"
+                ? "Neues Passwort eingeben"
+                : "Enter new password";
+        }
+
+        if (confirm) {
+            confirm.placeholder = currentLang === "de"
+                ? "Passwort wiederholen"
+                : "Repeat new password";
+        }
+    }
 
     function setStatus(message, type = "") {
         if (!msg) return;
@@ -17,61 +119,72 @@ document.addEventListener("DOMContentLoaded", async () => {
     function setFormDisabled(disabled) {
         if (password) password.disabled = disabled;
         if (confirm) confirm.disabled = disabled;
+
         const submitBtn = form?.querySelector("button[type='submit']");
         if (submitBtn) submitBtn.disabled = disabled;
     }
 
-    if (!form || !password || !confirm || !msg) {
-        console.error("Password reset page elements are missing.");
-        return;
+    function applyTheme(theme) {
+        document.documentElement.setAttribute("data-theme", theme);
+        localStorage.setItem(THEME_KEY, theme);
+
+        if (themeIcon) {
+            themeIcon.textContent = theme === "dark" ? "🌙" : "☀️";
+        }
     }
 
-    password.setAttribute("autocomplete", "new-password");
-    confirm.setAttribute("autocomplete", "new-password");
+    function initThemeControls() {
+        const currentTheme = document.documentElement.getAttribute("data-theme") || "dark";
+        applyTheme(currentTheme);
 
-    // ======================
-    // WAIT FOR NOVAAUTH
-    // ======================
+        themeToggle?.addEventListener("click", () => {
+            const activeTheme = document.documentElement.getAttribute("data-theme") || "dark";
+            applyTheme(activeTheme === "dark" ? "light" : "dark");
+        });
+    }
+
+    function initLanguageControls() {
+        applyResetLanguage();
+
+        langToggle?.addEventListener("click", () => {
+            currentLang = currentLang === "en" ? "de" : "en";
+            localStorage.setItem(LANG_KEY, currentLang);
+            applyResetLanguage();
+            validateMatch();
+        });
+    }
+
+    function initBurger() {
+        burger?.addEventListener("click", () => {
+            nav?.classList.toggle("open");
+            burger.classList.toggle("open");
+        });
+    }
+
+    function setupPasswordToggle(toggle, input) {
+        toggle?.addEventListener("click", () => {
+            const hidden = input.type === "password";
+            input.type = hidden ? "text" : "password";
+            toggle.textContent = hidden ? "🙈" : "👁";
+            toggle.setAttribute("aria-label", hidden ? "Hide password" : "Show password");
+        });
+    }
+
     async function waitForSupabaseClient() {
         for (let i = 0; i < 40; i++) {
             const client = window.NovaAuth?.createSupabaseClient?.();
-            if (client) return client;
+
+            if (client) {
+                return client;
+            }
+
             await new Promise((resolve) => setTimeout(resolve, 100));
         }
 
         return null;
     }
 
-    const supabase = await waitForSupabaseClient();
-
-    if (!supabase) {
-        setStatus("Auth system not ready. Please reload the page.", "error");
-        setFormDisabled(true);
-        return;
-    }
-
-    // ======================
-    // PASSWORD VISIBILITY
-    // ======================
-    function setupToggle(toggle, input) {
-        toggle?.addEventListener("click", () => {
-            const isHidden = input.type === "password";
-            input.type = isHidden ? "text" : "password";
-            toggle.textContent = isHidden ? "🙈" : "👁";
-            toggle.setAttribute(
-                "aria-label",
-                isHidden ? "Hide password" : "Show password"
-            );
-        });
-    }
-
-    setupToggle(togglePassword, password);
-    setupToggle(toggleConfirm, confirm);
-
-    // ======================
-    // WAIT FOR RECOVERY SESSION
-    // ======================
-    async function waitForRecoverySession() {
+    async function waitForRecoverySession(supabase) {
         for (let i = 0; i < 40; i++) {
             const { data } = await supabase.auth.getSession();
 
@@ -85,53 +198,97 @@ document.addEventListener("DOMContentLoaded", async () => {
         return null;
     }
 
-    setStatus("Checking reset link...");
-
-    const session = await waitForRecoverySession();
-
-    if (!session) {
-        setStatus("Invalid or expired reset link. Please request a new one.", "error");
-        setFormDisabled(true);
-        return;
+    function clearRecoveryState() {
+        localStorage.removeItem(RECOVERY_FLAG);
+        sessionStorage.removeItem(RECOVERY_FLAG);
+        sessionStorage.removeItem(AUTH_CACHE_KEY);
     }
 
-    setStatus("Enter your new password.");
+    function markRecoveryStateIfNeeded() {
+        const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+        const queryParams = new URLSearchParams(window.location.search);
 
-    // ======================
-    // LIVE VALIDATION
-    // ======================
+        const isRecovery =
+            hashParams.get("type") === "recovery" ||
+            queryParams.get("type") === "recovery" ||
+            window.location.hash.includes("access_token");
+
+        if (isRecovery) {
+            localStorage.setItem(RECOVERY_FLAG, "1");
+            sessionStorage.setItem(RECOVERY_FLAG, "1");
+        }
+    }
+
     function validateMatch() {
+        if (!password || !confirm) return false;
+
         const pass = password.value.trim();
         const conf = confirm.value.trim();
 
         if (!pass && !conf) {
-            setStatus("Enter your new password.");
-            return;
+            setStatus(t("enterPassword"));
+            return false;
         }
 
         if (pass.length > 0 && pass.length < 6) {
-            setStatus("Password must be at least 6 characters.", "error");
-            return;
+            setStatus(t("tooShort"), "error");
+            return false;
         }
 
         if (!conf) {
-            setStatus("Confirm your password.");
-            return;
+            setStatus(t("confirmYourPassword"));
+            return false;
         }
 
         if (pass === conf) {
-            setStatus("Passwords match ✓", "success");
-        } else {
-            setStatus("Passwords do not match.", "error");
+            setStatus(t("match"), "success");
+            return true;
         }
+
+        setStatus(t("mismatch"), "error");
+        return false;
     }
+
+    initThemeControls();
+    initLanguageControls();
+    initBurger();
+
+    if (!form || !password || !confirm || !msg) {
+        console.error("Password reset page elements are missing.");
+        return;
+    }
+
+    password.setAttribute("autocomplete", "new-password");
+    confirm.setAttribute("autocomplete", "new-password");
+
+    setupPasswordToggle(togglePassword, password);
+    setupPasswordToggle(toggleConfirm, confirm);
+
+    markRecoveryStateIfNeeded();
+
+    const supabase = await waitForSupabaseClient();
+
+    if (!supabase) {
+        setStatus(t("authNotReady"), "error");
+        setFormDisabled(true);
+        return;
+    }
+
+    setStatus(t("checking"));
+
+    const session = await waitForRecoverySession(supabase);
+
+    if (!session) {
+        setStatus(t("invalid"), "error");
+        setFormDisabled(true);
+        return;
+    }
+
+    setStatus(t("enterPassword"));
 
     password.addEventListener("input", validateMatch);
     confirm.addEventListener("input", validateMatch);
 
-    // ======================
-    // SUBMIT
-    // ======================
     form.addEventListener("submit", async (e) => {
         e.preventDefault();
 
@@ -139,17 +296,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         const conf = confirm.value.trim();
 
         if (pass.length < 6) {
-            setStatus("Password must be at least 6 characters.", "error");
+            setStatus(t("tooShort"), "error");
             return;
         }
 
         if (pass !== conf) {
-            setStatus("Passwords do not match.", "error");
+            setStatus(t("mismatch"), "error");
             return;
         }
 
         setFormDisabled(true);
-        setStatus("Updating password...");
+        setStatus(t("updating"));
 
         const { error } = await supabase.auth.updateUser({
             password: pass
@@ -157,13 +314,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         if (error) {
             console.error("Password update error:", error);
-            setStatus(error.message || "Could not update password.", "error");
+            setStatus(error.message || t("updateFailed"), "error");
             setFormDisabled(false);
             return;
         }
 
-        setStatus("Password updated successfully! Redirecting...", "success");
+        setStatus(t("success"), "success");
 
+        clearRecoveryState();
         await supabase.auth.signOut();
 
         setTimeout(() => {
