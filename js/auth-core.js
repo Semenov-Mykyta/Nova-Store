@@ -3,31 +3,28 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 const AUTH_CACHE_KEY = "novastore_auth_cache";
 const AUTH_CACHE_TTL = 5 * 60 * 1000;
-
 const RECOVERY_FLAG = "novastore_password_recovery_active";
 
 function isPasswordResetPage() {
     const path = window.location.pathname.toLowerCase();
-
-    return (
-        path.endsWith("password-reset.html") ||
-        path.endsWith("reset-password.html")
-    );
+    return path.endsWith("password-reset.html") || path.endsWith("reset-password.html");
 }
 
-function hasRecoveryUrl() {
+function getUrlParams() {
     const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
     const queryParams = new URLSearchParams(window.location.search);
 
-    const hashType = hashParams.get("type");
-    const queryType = queryParams.get("type");
+    return { hashParams, queryParams };
+}
 
-    const hasAccessToken = window.location.hash.includes("access_token=");
+function hasRecoveryUrl() {
+    const { hashParams, queryParams } = getUrlParams();
 
     return (
-        hashType === "recovery" ||
-        queryType === "recovery" ||
-        (isPasswordResetPage() && hasAccessToken)
+        hashParams.get("type") === "recovery" ||
+        queryParams.get("type") === "recovery" ||
+        hashParams.has("access_token") ||
+        queryParams.has("code")
     );
 }
 
@@ -48,6 +45,10 @@ function isRecoveryActive() {
     );
 }
 
+function clearAuthCache() {
+    sessionStorage.removeItem(AUTH_CACHE_KEY);
+}
+
 function clearRecoveryState() {
     localStorage.removeItem(RECOVERY_FLAG);
     sessionStorage.removeItem(RECOVERY_FLAG);
@@ -62,7 +63,6 @@ function getPageUrl(page = "") {
 
     return new URL(page, `${window.location.origin}${directory}`).href;
 }
-
 
 function createSupabaseClient() {
     if (window.supabaseClient) return window.supabaseClient;
@@ -107,20 +107,19 @@ function writeAuthCache(user) {
     }));
 }
 
-function clearAuthCache() {
-    sessionStorage.removeItem(AUTH_CACHE_KEY);
-}
-
 async function clearRecoverySessionOutsideResetPage(client) {
     markRecoveryIfNeeded();
 
-    if (isPasswordResetPage()) {
-        return false;
-    }
+    if (isPasswordResetPage()) return false;
+    if (!isRecoveryActive()) return false;
 
-    if (!isRecoveryActive()) {
-        return false;
-    }
+    // Important: remove the recovery flag BEFORE signOut().
+    // Otherwise the SIGNED_OUT event can call this function again and create
+    // an infinite auth loop that crashes Chrome with "Out of Memory".
+    if (window.__novaRecoveryClearInProgress) return true;
+    window.__novaRecoveryClearInProgress = true;
+
+    clearRecoveryState();
 
     try {
         if (client) {
@@ -130,6 +129,7 @@ async function clearRecoverySessionOutsideResetPage(client) {
         console.warn("Could not clear recovery session:", error);
     } finally {
         clearRecoveryState();
+        window.__novaRecoveryClearInProgress = false;
 
         window.dispatchEvent(new CustomEvent("nova:auth-changed", {
             detail: { user: null }
@@ -201,6 +201,11 @@ function initAuthStateListener() {
     window.__novaAuthListenerReady = true;
 
     client.auth.onAuthStateChange(async (event, session) => {
+        if (window.__novaRecoveryClearInProgress) {
+            clearAuthCache();
+            return;
+        }
+
         if (event === "PASSWORD_RECOVERY") {
             localStorage.setItem(RECOVERY_FLAG, "1");
             sessionStorage.setItem(RECOVERY_FLAG, "1");
@@ -216,11 +221,9 @@ function initAuthStateListener() {
 
         if (recovery && isPasswordResetPage()) {
             clearAuthCache();
-
             window.dispatchEvent(new CustomEvent("nova:auth-changed", {
                 detail: { user: null }
             }));
-
             return;
         }
 
@@ -238,7 +241,6 @@ function initAuthStateListener() {
 
 async function handleSupabaseLoaded() {
     const client = createSupabaseClient();
-
     if (!client) return null;
 
     initAuthStateListener();
@@ -250,7 +252,6 @@ async function handleSupabaseLoaded() {
 
     try {
         const user = await getCurrentUser({ forceRefresh: true });
-
         window.dispatchEvent(new CustomEvent("nova:auth-changed", {
             detail: { user }
         }));
