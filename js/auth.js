@@ -1,6 +1,16 @@
+async function waitForAuthSupabaseClient() {
+    for (let i = 0; i < 50; i++) {
+        const client = window.NovaAuth?.createSupabaseClient?.();
+        if (client) return client;
+
+        await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+
+    return null;
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
-    const supabaseClient = window.NovaAuth?.createSupabaseClient();
-    if (!supabaseClient) return;
+    const supabaseClient = await waitForAuthSupabaseClient();
 
     const loginForm = document.getElementById("login-form");
     const registerForm = document.getElementById("register-form");
@@ -14,6 +24,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         el.textContent = msg;
         el.className = "auth-status";
         if (type) el.classList.add(type);
+    }
+
+    if (!supabaseClient) {
+        setStatus(loginStatus, "Auth service did not load. Please reload the page.", "error");
+        setStatus(registerStatus, "Auth service did not load. Please reload the page.", "error");
+        return;
     }
 
 

@@ -308,7 +308,11 @@ function initRipple() {
  */
 async function waitForSupabaseClient() {
     for (let i = 0; i < 30; i++) {
+        const client = window.NovaAuth?.createSupabaseClient?.();
+
+        if (client) return client;
         if (window.supabaseClient) return window.supabaseClient;
+
         await new Promise((resolve) => setTimeout(resolve, 100));
     }
 

@@ -236,6 +236,31 @@ function initAuthStateListener() {
     });
 }
 
+async function handleSupabaseLoaded() {
+    const client = createSupabaseClient();
+
+    if (!client) return null;
+
+    initAuthStateListener();
+    await clearRecoverySessionOutsideResetPage(client);
+
+    window.dispatchEvent(new CustomEvent("nova:supabase-ready", {
+        detail: { client }
+    }));
+
+    try {
+        const user = await getCurrentUser({ forceRefresh: true });
+
+        window.dispatchEvent(new CustomEvent("nova:auth-changed", {
+            detail: { user }
+        }));
+    } catch (error) {
+        console.warn("Could not refresh auth state after Supabase loaded:", error);
+    }
+
+    return client;
+}
+
 window.NovaAuth = {
     createSupabaseClient,
     getCurrentUser,
@@ -243,14 +268,10 @@ window.NovaAuth = {
     clearAuthCache,
     clearRecoveryState,
     getPageUrl,
-    initAuthStateListener
+    initAuthStateListener,
+    handleSupabaseLoaded
 };
 
 document.addEventListener("DOMContentLoaded", async () => {
-    const client = createSupabaseClient();
-    initAuthStateListener();
-
-    if (client) {
-        await clearRecoverySessionOutsideResetPage(client);
-    }
+    await handleSupabaseLoaded();
 });

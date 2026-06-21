@@ -17,20 +17,43 @@
             document.documentElement.setAttribute("data-theme", theme);
         })();
     </script>
+        <script>
+            (function () {
+                function hideLoader() {
+                    var loader = document.getElementById("page-loader");
+                    if (loader) loader.classList.add("hidden");
+                }
+
+                if (document.readyState === "loading") {
+                    document.addEventListener("DOMContentLoaded", function () {
+                        setTimeout(hideLoader, 250);
+                    }, { once: true });
+                } else {
+                    setTimeout(hideLoader, 250);
+                }
+
+                window.addEventListener("load", function () {
+                    setTimeout(hideLoader, 250);
+                }, { once: true });
+
+                setTimeout(hideLoader, 2500);
+            })();
+        </script>
+
     <link rel="stylesheet" href="css/base.css" />
     <link rel="stylesheet" href="css/navbar.css" />
     <link rel="stylesheet" href="css/sections.css" />
     <link rel="stylesheet" href="css/pages.css" />
     <link rel="stylesheet" href="css/responsive.css" />
-    <script defer src="https://unpkg.com/@supabase/supabase-js@2"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
-    <script defer src="js/translations.js"></script>
-    <script defer src="js/auth-core.js"></script>
-    <script defer src="js/auth.js"></script>
-    <script defer src="js/cart.js"></script>
-    <script defer src="js/main.js"></script>
-    <script defer src="js/navbar-auth.js"></script>
-</head>
+        <script defer src="js/translations.js"></script>
+        <script defer src="js/auth-core.js"></script>
+        <script defer src="js/auth.js"></script>
+        <script defer src="js/cart.js"></script>
+        <script defer src="js/main.js"></script>
+        <script defer src="js/navbar-auth.js"></script>
+        <script async src="https://unpkg.com/@supabase/supabase-js@2" onload="window.NovaAuth && window.NovaAuth.handleSupabaseLoaded && window.NovaAuth.handleSupabaseLoaded()"></script>
+        <script async src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js" onload="window.dispatchEvent(new Event('nova:emailjs-loaded'))"></script>
+    </head>
 <body>
 <header class="header glass-nav fade-down">
     <div class="container header-inner">

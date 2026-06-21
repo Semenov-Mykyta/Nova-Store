@@ -1,3 +1,14 @@
+async function waitForOrdersSupabaseClient() {
+    for (let i = 0; i < 50; i++) {
+        const client = window.NovaAuth?.createSupabaseClient?.();
+        if (client) return client;
+
+        await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+
+    return null;
+}
+
 function escapeHtml(value) {
     return String(value ?? "")
         .replace(/&/g, "&amp;")
@@ -108,7 +119,11 @@ function renderOrders(orders, itemsByOrderId) {
 async function loadOrderItems(orderIds) {
     if (!orderIds.length) return {};
 
-    const { data, error } = await window.supabaseClient
+    const client = window.NovaAuth?.createSupabaseClient?.() || window.supabaseClient;
+
+    if (!client) return {};
+
+    const { data, error } = await client
         .from("order_items")
         .select("*")
         .in("order_id", orderIds);
@@ -132,6 +147,12 @@ async function loadMyOrders() {
     container.innerHTML = `<p>Loading orders...</p>`;
 
     try {
+        const client = await waitForOrdersSupabaseClient();
+
+        if (!client) {
+            throw new Error("Auth service did not load. Please reload the page.");
+        }
+
         const user = await window.NovaAuth?.getCurrentUser?.({ forceRefresh: true });
 
         if (!user) {
@@ -140,11 +161,7 @@ async function loadMyOrders() {
             return;
         }
 
-        if (!window.supabaseClient) {
-            throw new Error("Supabase client is not initialized");
-        }
-
-        const { data: orders, error } = await window.supabaseClient
+        const { data: orders, error } = await client
             .from("orders")
             .select("id, user_id, total, status, created_at")
             .eq("user_id", user.id)

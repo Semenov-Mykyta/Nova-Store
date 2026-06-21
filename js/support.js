@@ -4,6 +4,17 @@ const EMAILJS_SERVICE_ID = "service_knm5jpr";
 const EMAILJS_TEMPLATE_ID = "template_t7dqfdg";
 
 let supportAutofilledEmail = "";
+let emailJsInitialized = false;
+
+function initEmailJsIfAvailable() {
+    if (typeof emailjs === "undefined" || emailJsInitialized) return false;
+
+    emailjs.init(EMAILJS_PUBLIC_KEY);
+    emailJsInitialized = true;
+    return true;
+}
+
+window.addEventListener("nova:emailjs-loaded", initEmailJsIfAvailable);
 
 /**
  * Automatically fills the support email field for logged-in users.
@@ -31,9 +42,7 @@ async function autofillSupportEmail() {
 
 document.addEventListener("DOMContentLoaded", () => {
     /* Initialize EmailJS with the public key if the library has loaded */
-    if (typeof emailjs !== "undefined") {
-        emailjs.init(EMAILJS_PUBLIC_KEY);
-    }
+    initEmailJsIfAvailable();
 
     const form = document.getElementById("support-form");
     const statusEl = document.getElementById("support-status");
@@ -75,6 +84,8 @@ document.addEventListener("DOMContentLoaded", () => {
             submitBtn.textContent = "Send message";
             return;
         }
+
+        initEmailJsIfAvailable();
 
         if (typeof emailjs === "undefined") {
             statusEl.textContent = "Email service is not loaded. Check your internet connection or EmailJS script URL.";
