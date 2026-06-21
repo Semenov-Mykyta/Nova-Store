@@ -123,9 +123,23 @@ function initLoader() {
     const loader = document.getElementById("page-loader");
     if (!loader) return;
 
-    window.addEventListener("load", () => {
-        setTimeout(() => loader.classList.add("hidden"), 400);
-    });
+    let hidden = false;
+
+    function hideLoader() {
+        if (hidden) return;
+        hidden = true;
+        setTimeout(() => loader.classList.add("hidden"), 250);
+    }
+
+    if (document.readyState === "complete") {
+        hideLoader();
+    } else {
+        window.addEventListener("load", hideLoader, { once: true });
+    }
+
+    // Safety fallback: CDN scripts/images can occasionally delay the load event.
+    // The site should still become visible.
+    setTimeout(hideLoader, 1600);
 }
 
 /**
