@@ -2,7 +2,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const RECOVERY_FLAG = "novastore_password_recovery_active";
     const AUTH_CACHE_KEY = "novastore_auth_cache";
     const THEME_KEY = "novastore_theme";
-    const LANG_KEY = "novastore_lang";
+    const LANG_KEY = "lang";
 
 
 const form = document.getElementById("reset-form");

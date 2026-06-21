@@ -139,15 +139,32 @@ html.theme-switching .theme-icon {
     align-items: center;
     justify-content: center;
     z-index: 999;
+    pointer-events: all;
     transition:
             opacity 0.35s ease,
             visibility 0.35s ease,
             background-color var(--transition-theme);
+    animation: forceHideLoader 2.5s ease forwards;
 }
 
 .page-loader.hidden {
     opacity: 0;
     visibility: hidden;
+    pointer-events: none;
+}
+
+@keyframes forceHideLoader {
+    0%, 85% {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: all;
+    }
+
+    100% {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+    }
 }
 
 .loader-glass {

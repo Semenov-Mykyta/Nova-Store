@@ -365,6 +365,7 @@ select:focus {
 
 .footer-inner { display: grid; gap: 1.5rem; }
 .footer-col h4 { margin-bottom: 0.7rem; }
+.footer-col p { color: var(--text-muted); line-height: 1.65; }
 .footer-col a { display: block; color: var(--text-muted); margin-bottom: 0.3rem; }
 
 
@@ -429,6 +430,8 @@ select:focus {
 .fade-in,
 .fade-down { animation: fadeIn 0.45s ease forwards; }
 
+.footer.fade-in { animation-duration: 0.55s; }
+
 .hover-lift { transition: transform var(--transition-med), box-shadow var(--transition-med), border-color var(--transition-med); }
 .hover-lift:hover { transform: translateY(-4px); box-shadow: var(--shadow-hover); border-color: color-mix(in srgb, var(--accent) 35%, var(--border)); }
 
@@ -446,7 +449,7 @@ select:focus {
 /* Footer Links Animations */
 .footer-links a {
     display: block;
-    color: #777;
+    color: var(--text-muted);
     text-decoration: none;
     transition: transform 0.3s ease, color 0.3s ease;
     margin-bottom: 0.5rem;

@@ -1,5 +1,5 @@
 async function waitForAuthSupabaseClient() {
-    for (let i = 0; i < 50; i++) {
+    for (let i = 0; i < 60; i++) {
         const client = window.NovaAuth?.createSupabaseClient?.();
         if (client) return client;
 
@@ -18,23 +18,22 @@ document.addEventListener("DOMContentLoaded", async () => {
     const registerStatus = document.getElementById("register-status");
     const forgotBtn = document.getElementById("forgot-password-btn");
     const logoutBtn = document.getElementById("logout-btn");
+    const dashboard = document.getElementById("dashboard");
+    const dashboardEmail = document.getElementById("dashboard-email");
 
-    function setStatus(el, msg, type = "") {
+    function setStatus(el, message, type = "") {
         if (!el) return;
-        el.textContent = msg;
+        el.textContent = message;
         el.className = "auth-status";
         if (type) el.classList.add(type);
     }
 
-    if (!supabaseClient) {
-        setStatus(loginStatus, "Auth service did not load. Please reload the page.", "error");
-        setStatus(registerStatus, "Auth service did not load. Please reload the page.", "error");
-        return;
+    function getPageUrl(page) {
+        return window.NovaAuth?.getPageUrl?.(page) || new URL(page, window.location.href).href;
     }
 
-
     function getSafeNextUrl() {
-        const fallback = window.NovaAuth?.getPageUrl?.("index.html") || "index.html";
+        const fallback = getPageUrl("index.html");
         const next = new URLSearchParams(window.location.search).get("next");
 
         if (!next) return fallback;
@@ -47,9 +46,81 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    function getAuthRedirectUrl(page) {
-        return window.NovaAuth?.getPageUrl?.(page) || new URL(page, window.location.href).href;
+    function isValidEmail(email) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
     }
+
+    function setButtonLoading(button, isLoading, loadingText = "Loading...") {
+        if (!button) return;
+
+        if (isLoading) {
+            button.dataset.originalText = button.textContent;
+            button.disabled = true;
+            button.textContent = loadingText;
+            return;
+        }
+
+        button.disabled = false;
+        if (button.dataset.originalText) {
+            button.textContent = button.dataset.originalText;
+            delete button.dataset.originalText;
+        }
+    }
+
+    function initAuthTabs() {
+        const tabs = document.querySelectorAll(".auth-tab[data-auth-tab]");
+        const forms = document.querySelectorAll(".auth-form");
+
+        if (!tabs.length || !forms.length) return;
+
+        function activateTab(name) {
+            tabs.forEach((tab) => {
+                tab.classList.toggle("active", tab.dataset.authTab === name);
+            });
+
+            forms.forEach((form) => {
+                const isTarget = form.id === `${name}-form`;
+                form.classList.toggle("active", isTarget);
+            });
+
+            setStatus(loginStatus, "");
+            setStatus(registerStatus, "");
+        }
+
+        tabs.forEach((tab) => {
+            tab.addEventListener("click", () => activateTab(tab.dataset.authTab));
+        });
+
+        const initialTab = new URLSearchParams(window.location.search).get("tab") === "register"
+            ? "register"
+            : "login";
+
+        activateTab(initialTab);
+    }
+
+    async function refreshDashboard() {
+        if (!dashboard) return;
+
+        const user = await window.NovaAuth?.getCurrentUser?.({ forceRefresh: true });
+
+        if (user?.email) {
+            dashboard.hidden = false;
+            if (dashboardEmail) dashboardEmail.textContent = user.email;
+        } else {
+            dashboard.hidden = true;
+            if (dashboardEmail) dashboardEmail.textContent = "";
+        }
+    }
+
+    initAuthTabs();
+
+    if (!supabaseClient) {
+        setStatus(loginStatus, "Auth service did not load. Please reload the page.", "error");
+        setStatus(registerStatus, "Auth service did not load. Please reload the page.", "error");
+        return;
+    }
+
+    await refreshDashboard();
 
     // ======================
     // LOGIN
@@ -58,31 +129,55 @@ document.addEventListener("DOMContentLoaded", async () => {
         loginForm.addEventListener("submit", async (e) => {
             e.preventDefault();
 
-            const email = document.getElementById("login-email").value.trim();
-            const password = document.getElementById("login-password").value;
+            const submitBtn = loginForm.querySelector("button[type='submit']");
+            const email = document.getElementById("login-email")?.value.trim().toLowerCase() || "";
+            const password = document.getElementById("login-password")?.value || "";
 
-            const { data, error } = await supabaseClient.auth.signInWithPassword({
-                email,
-                password
-            });
+            setStatus(loginStatus, "");
 
-            if (error) {
-                setStatus(loginStatus, error.message, "error");
+            if (!isValidEmail(email)) {
+                setStatus(loginStatus, "Enter a valid email address.", "error");
                 return;
             }
 
-            setStatus(loginStatus, "Logged in successfully", "success");
+            if (!password) {
+                setStatus(loginStatus, "Enter your password.", "error");
+                return;
+            }
 
-            sessionStorage.setItem("novastore_auth_cache", JSON.stringify({
-                createdAt: Date.now(),
-                user: data.user
-            }));
+            setButtonLoading(submitBtn, true, "Logging in...");
 
-            window.dispatchEvent(new CustomEvent("nova:auth-changed", {
-                detail: { user: data.user }
-            }));
+            try {
+                window.NovaAuth?.clearRecoveryState?.();
+                window.NovaAuth?.clearAuthCache?.();
 
-            window.location.href = getSafeNextUrl();
+                const { data, error } = await supabaseClient.auth.signInWithPassword({
+                    email,
+                    password
+                });
+
+                if (error) {
+                    setStatus(loginStatus, error.message, "error");
+                    return;
+                }
+
+                sessionStorage.setItem("novastore_auth_cache", JSON.stringify({
+                    createdAt: Date.now(),
+                    user: data.user ? { id: data.user.id, email: data.user.email } : null
+                }));
+
+                window.dispatchEvent(new CustomEvent("nova:auth-changed", {
+                    detail: { user: data.user || null }
+                }));
+
+                setStatus(loginStatus, "Logged in successfully.", "success");
+                window.location.href = getSafeNextUrl();
+            } catch (err) {
+                console.error("Login failed:", err);
+                setStatus(loginStatus, "Login failed. Please try again.", "error");
+            } finally {
+                setButtonLoading(submitBtn, false);
+            }
         });
     }
 
@@ -93,120 +188,150 @@ document.addEventListener("DOMContentLoaded", async () => {
         registerForm.addEventListener("submit", async (e) => {
             e.preventDefault();
 
-            const email = document.getElementById("register-email").value.trim();
-            const password = document.getElementById("register-password").value;
+            const submitBtn = registerForm.querySelector("button[type='submit']");
+            const email = document.getElementById("register-email")?.value.trim().toLowerCase() || "";
+            const password = document.getElementById("register-password")?.value || "";
 
-            const { error } = await supabaseClient.auth.signUp({
-                email,
-                password,
-                options: {
-                    emailRedirectTo: getAuthRedirectUrl("login.html")
-                }
-            });
+            setStatus(registerStatus, "");
 
-            if (error) {
-                setStatus(registerStatus, error.message, "error");
+            if (!isValidEmail(email)) {
+                setStatus(registerStatus, "Enter a valid email address.", "error");
                 return;
             }
 
-            setStatus(registerStatus, "Check your email to confirm account", "success");
+            if (password.length < 6) {
+                setStatus(registerStatus, "Password must be at least 6 characters.", "error");
+                return;
+            }
+
+            setButtonLoading(submitBtn, true, "Creating account...");
+
+            try {
+                window.NovaAuth?.clearRecoveryState?.();
+                window.NovaAuth?.clearAuthCache?.();
+
+                const { data, error } = await supabaseClient.auth.signUp({
+                    email,
+                    password,
+                    options: {
+                        emailRedirectTo: getPageUrl("login.html")
+                    }
+                });
+
+                if (error) {
+                    setStatus(registerStatus, error.message, "error");
+                    return;
+                }
+
+                if (data?.session?.user) {
+                    sessionStorage.setItem("novastore_auth_cache", JSON.stringify({
+                        createdAt: Date.now(),
+                        user: { id: data.session.user.id, email: data.session.user.email }
+                    }));
+
+                    window.dispatchEvent(new CustomEvent("nova:auth-changed", {
+                        detail: { user: data.session.user }
+                    }));
+
+                    setStatus(registerStatus, "Account created. Redirecting...", "success");
+                    window.location.href = getSafeNextUrl();
+                    return;
+                }
+
+                setStatus(registerStatus, "Account created. Check your email to confirm it.", "success");
+                registerForm.reset();
+            } catch (err) {
+                console.error("Registration failed:", err);
+                setStatus(registerStatus, "Registration failed. Please try again.", "error");
+            } finally {
+                setButtonLoading(submitBtn, false);
+            }
         });
     }
 
     // ======================
-    // UI COOLDOWN TIMER
+    // FORGOT PASSWORD
     // ======================
-    function startButtonCooldown(btn, seconds) {
+    function startButtonCooldown(button, seconds, originalText) {
         let remaining = seconds;
-        const originalText = btn.textContent;
 
-        btn.disabled = true;
+        button.disabled = true;
+        button.textContent = `Wait ${remaining}s`;
 
         const interval = setInterval(() => {
-            remaining--;
+            remaining -= 1;
 
             if (remaining <= 0) {
                 clearInterval(interval);
-                btn.disabled = false;
-                btn.textContent = originalText;
+                button.disabled = false;
+                button.textContent = originalText || "Forgot password?";
                 return;
             }
 
-            btn.textContent = `Wait ${remaining}s`;
+            button.textContent = `Wait ${remaining}s`;
         }, 1000);
     }
 
-    // ======================
-    // FORGOT PASSWORD (UI + EMAIL COOLDOWN)
-    // ======================
     if (forgotBtn) {
         forgotBtn.addEventListener("click", async () => {
-            const email = document.getElementById("login-email").value.trim();
+            const email = document.getElementById("login-email")?.value.trim().toLowerCase() || "";
 
-            if (!email) {
-                setStatus(loginStatus, "Enter email first", "error");
+            if (!isValidEmail(email)) {
+                setStatus(loginStatus, "Enter a valid email first.", "error");
                 return;
             }
 
             const now = Date.now();
-
-            // ======================
-            // 🟡 EMAIL COOLDOWN (10 MIN)
-            // ======================
-            const emailKey = `reset_email_${email}`;
-            const lastEmail = localStorage.getItem(emailKey);
+            const emailKey = `novastore_reset_email_${email}`;
+            const uiKey = `novastore_reset_ui_${email}`;
             const EMAIL_COOLDOWN = 10 * 60 * 1000;
-
-            if (lastEmail && now - Number(lastEmail) < EMAIL_COOLDOWN) {
-                const left = Math.ceil((EMAIL_COOLDOWN - (now - Number(lastEmail))) / 60000);
-                setStatus(loginStatus, `Please wait ${left} min before requesting again`, "error");
-                return;
-            }
-
-            // ======================
-            // 🟢 UI COOLDOWN (60s)
-            // ======================
-            const uiKey = `reset_ui_${email}`;
-            const lastUI = localStorage.getItem(uiKey);
             const UI_COOLDOWN = 60 * 1000;
 
-            if (lastUI && now - Number(lastUI) < UI_COOLDOWN) {
-                const left = Math.ceil((UI_COOLDOWN - (now - Number(lastUI))) / 1000);
-                setStatus(loginStatus, `Wait ${left}s`, "error");
+            const lastEmail = Number(localStorage.getItem(emailKey) || 0);
+            const emailLeft = EMAIL_COOLDOWN - (now - lastEmail);
+
+            if (emailLeft > 0) {
+                const left = Math.ceil(emailLeft / 60000);
+                setStatus(loginStatus, `Please wait ${left} min before requesting another reset for this email.`, "error");
                 return;
             }
 
-            forgotBtn.disabled = true;
+            const lastUI = Number(localStorage.getItem(uiKey) || 0);
+            const uiLeft = UI_COOLDOWN - (now - lastUI);
+
+            if (uiLeft > 0) {
+                const left = Math.ceil(uiLeft / 1000);
+                setStatus(loginStatus, `Wait ${left}s before retrying.`, "error");
+                return;
+            }
+
             const oldText = forgotBtn.textContent;
+            forgotBtn.disabled = true;
             forgotBtn.textContent = "Sending...";
 
             try {
                 const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
-                    redirectTo: getAuthRedirectUrl("password-reset.html")
+                    redirectTo: getPageUrl("password-reset.html")
                 });
 
                 if (error) {
                     setStatus(loginStatus, error.message, "error");
+                    forgotBtn.disabled = false;
+                    forgotBtn.textContent = oldText;
                     return;
                 }
 
-                // save timestamps
-                localStorage.setItem(emailKey, String(now));
-                localStorage.setItem(uiKey, String(now));
+                const sentAt = Date.now();
+                localStorage.setItem(emailKey, String(sentAt));
+                localStorage.setItem(uiKey, String(sentAt));
 
-                setStatus(loginStatus, "Check your email for reset link", "success");
-
-                // UI timer
-                startButtonCooldown(forgotBtn, 60);
-
+                setStatus(loginStatus, "Check your email for reset link.", "success");
+                startButtonCooldown(forgotBtn, 60, oldText);
             } catch (err) {
-                console.error(err);
-                setStatus(loginStatus, "Failed to send reset email", "error");
-            } finally {
-                setTimeout(() => {
-                    forgotBtn.disabled = false;
-                    forgotBtn.textContent = oldText || "Forgot password?";
-                }, 1000);
+                console.error("Reset email failed:", err);
+                setStatus(loginStatus, "Failed to send reset email.", "error");
+                forgotBtn.disabled = false;
+                forgotBtn.textContent = oldText;
             }
         });
     }
@@ -216,14 +341,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     // ======================
     if (logoutBtn) {
         logoutBtn.addEventListener("click", async () => {
-            await supabaseClient.auth.signOut();
-            sessionStorage.removeItem("novastore_auth_cache");
+            try {
+                if (window.NovaCart?.prepareForLogout) {
+                    await window.NovaCart.prepareForLogout();
+                }
 
-            window.dispatchEvent(new CustomEvent("nova:auth-changed", {
-                detail: { user: null }
-            }));
-
-            window.location.href = "login.html";
+                await supabaseClient.auth.signOut();
+            } finally {
+                window.NovaAuth?.clearAuthCache?.();
+                window.dispatchEvent(new CustomEvent("nova:auth-changed", {
+                    detail: { user: null }
+                }));
+                window.location.href = getPageUrl("login.html");
+            }
         });
     }
 });
