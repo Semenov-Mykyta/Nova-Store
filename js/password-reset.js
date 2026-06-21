@@ -1,5 +1,5 @@
 document.addEventListener("DOMContentLoaded", async () => {
-    const supabase = window.NovaAuth.createSupabaseClient();
+    const supabase = window.NovaAuth?.createSupabaseClient();
 
     const form = document.getElementById("reset-form");
     const password = document.getElementById("password");
@@ -9,50 +9,46 @@ document.addEventListener("DOMContentLoaded", async () => {
     const togglePassword = document.getElementById("toggle-password");
     const toggleConfirm = document.getElementById("toggle-confirm");
 
-    const passwordInput = password;
-    const confirmInput = confirm;
+    // =========================
+    // SAFETY CHECK (FIX BUG)
+    // =========================
+    if (!supabase) {
+        msg.textContent = "Auth system not loaded";
+        return;
+    }
+
+    if (!form || !password || !confirm || !msg) {
+        console.error("Reset DOM missing elements");
+        return;
+    }
 
     // =========================
-    // TOGGLE PASSWORD
+    // TOGGLE PASSWORDS
     // =========================
-    togglePassword.addEventListener("click", () => {
-        const type = passwordInput.type === "password" ? "text" : "password";
-        passwordInput.type = type;
+    togglePassword?.addEventListener("click", () => {
+        const type = password.type === "password" ? "text" : "password";
+        password.type = type;
         togglePassword.textContent = type === "password" ? "👁" : "🙈";
     });
 
-    toggleConfirm.addEventListener("click", () => {
-        const type = confirmInput.type === "password" ? "text" : "password";
-        confirmInput.type = type;
+    toggleConfirm?.addEventListener("click", () => {
+        const type = confirm.type === "password" ? "text" : "password";
+        confirm.type = type;
         toggleConfirm.textContent = type === "password" ? "👁" : "🙈";
     });
 
     // =========================
-    // CLIENT CHECK
+    // CHECK RECOVERY SESSION
     // =========================
-    if (!supabase) {
-        msg.textContent = "Auth system not ready";
-        return;
-    }
-
-    // =========================
-    // 🔥 IMPORTANT FIX: SUPABASE RECOVERY SESSION
-    // =========================
-    const hash = window.location.hash;
-
-    if (hash && hash.includes("access_token")) {
-        await supabase.auth.getSessionFromUrl({ storeSession: true });
-    }
-
     const { data: sessionData } = await supabase.auth.getSession();
 
     if (!sessionData?.session) {
-        msg.textContent = "Invalid or expired reset session. Try again.";
+        msg.textContent = "Invalid or expired reset link";
         return;
     }
 
     // =========================
-    // RESET PASSWORD
+    // SUBMIT
     // =========================
     form.addEventListener("submit", async (e) => {
         e.preventDefault();
@@ -77,7 +73,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
 
         if (error) {
-            console.error(error);
             msg.textContent = error.message;
             return;
         }
